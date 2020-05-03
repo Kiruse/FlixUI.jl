@@ -2,7 +2,7 @@ module FlixUI
 using FlixGL
 using FreeType
 using StaticArrays
-export destroy
+export destroy, compile
 
 const Optional{T} = Union{Nothing, T}
 
