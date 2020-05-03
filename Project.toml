@@ -1,0 +1,9 @@
+name = "FlixUI"
+uuid = "549ea399-ff4d-4e8d-a639-d3a73b0d6647"
+authors = ["Kiruse <neurokiruse@outlook.com>"]
+version = "0.1.0"
+
+[deps]
+FlixGL = "bc95435f-373a-49fe-86c5-1d6f8d4e4aed"
+FreeType = "b38be410-82b0-50bf-ab77-7b57e271db43"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
