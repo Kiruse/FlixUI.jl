@@ -8,6 +8,5 @@ uniform sampler2D texText;
 
 void main()
 {
-    outColor = uniColor;
-    outColor.a *= texture(texText, vecUv).r;
+    outColor = vec4(uniColor.rgb, texture(texText, vecUv).r);
 }

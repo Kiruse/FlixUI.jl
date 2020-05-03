@@ -2,13 +2,17 @@ module FlixUI
 using FlixGL
 using FreeType
 using StaticArrays
-export destroy, compile
+import FlixGL.LowLevel
+export destroy, compile, compile!
 
+const dir_assets  = "$(@__DIR__)/../assets"
+const dir_shaders = "$dir_assets/shaders"
 const Optional{T} = Union{Nothing, T}
 
 include("./Errors.jl")
 include("./EventDispatcher.jl")
 include("./Fonts.jl")
+include("./UIElements.jl")
 
 function __init__()
     global _ftlib
