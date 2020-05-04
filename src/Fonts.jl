@@ -94,25 +94,20 @@ function measure(font::Font, text::AbstractString; lineheight::Real = 1)
     lineheight = round(Int, lineheight * font.lineheight)
     
     # Normalize newlines
-    text  = replace(text, r"\r\n|\n\r" => "\n")
-    lines = remove_trailing_newlines!(split(text, "\n"))
+    text  = replace(text, r"\r\n|\n\r" => '\n')
+    lines = remove_trailing_newlines!(split(text, '\n'))
     
-    width  = 0
-    height = (length(lines)-1) * lineheight  # Last line uses different height
-    height += font.ascender - font.descender # Last line uses global glyph height to ensure it can hold any glyph
-    
-    for line ∈ lines
-        linewidth = 0
-        
-        for char ∈ line
-            glyph = getglyph(font, char)
-            linewidth += xcoord(glyph.advance)
-        end
-        
-        width = max(width, linewidth)
-    end
-    
+    width  = reduce(max, (measure_linewidth(font, line) for line ∈ lines))
+    height = measure_textheight(font, length(lines); lineheight=lineheight)
     (width, height)
+end
+function measure_textheight(font::Font, numlines::Integer; lineheight::Real)
+    # Last line uses global glyph height to ensure it can hold any glyph
+    (numlines-1) * lineheight + font.ascender - font.descender
+end
+function measure_linewidth(font::Font, text)
+    @assert '\n' ∉ text
+    reduce(+, (getglyph(font, char).advance[1] for char ∈ text))
 end
 
 function findcolortype(font::Font, text::AbstractString)
@@ -140,10 +135,10 @@ function compile(font::Font, text::AbstractString; lineheight::AbstractFloat = 1
     width, height = measure(font, text, lineheight=lineheight)
     pixels = zeros(findcolortype(font, text), height, width)
     
-    text  = replace(text, r"\r\n|\n\r" => "\n")
-    lines = remove_trailing_newlines!(split(text, "\n"))
+    text  = replace(text, r"\r\n|\n\r" => '\n')
+    lines = remove_trailing_newlines!(split(text, '\n'))
     
-    lineheight = font.lineheight * lineheight
+    lineheight = round(Int, font.lineheight * lineheight)
     
     # TODO: Bearing.X can be negative - adjust for this on first characters of each line
     
