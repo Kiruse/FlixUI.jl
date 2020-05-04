@@ -51,16 +51,18 @@ mutable struct Label <: AbstractUIElement
     width::Optional{<:Integer}
     lineheightmult::Real
     align::TextAlignment
+    origin::Anchor
     transform::Transform2D
     material::LabelMaterial
 end
-Label(font::Font) = Label(LabelVAO(), font, "", nothing, 0, AlignLeft, Transform2D(), LabelMaterial())
-function Label(text::AbstractString, font::Font; width::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, color::Color = White, align::TextAlignment = AlignLeft)
+Label(font::Font) = Label(LabelVAO(), font, "", nothing, 0, AlignLeft, CenterAnchor, Transform2D(), LabelMaterial())
+function Label(text::AbstractString, font::Font; width::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, color::Color = White, align::TextAlignment = AlignLeft, origin::Anchor = CenterAnchor)
     lbl = Label(font)
     lbl.text           = text
     lbl.width          = width
     lbl.lineheightmult = lineheightmult
     lbl.align          = align
+    lbl.origin         = origin
     lbl.material.color = color
     compile!(lbl)
 end
@@ -70,15 +72,7 @@ FlixGL.drawmodeof(::Label) = LowLevel.TriangleFanDrawMode
 
 function compile!(lbl::Label)
     # Update vertex coordinates
-    width, height = measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)
-    halfwidth, halfheight = (width, height) ./ 2
-    verts = Float32[
-        -halfwidth, -halfheight,
-         halfwidth, -halfheight,
-         halfwidth,  halfheight,
-        -halfwidth,  halfheight
-    ]
-    LowLevel.buffer_update(lbl.vao.vbo_coords, verts)
+    LowLevel.buffer_update(lbl.vao.vbo_coords, getlabelverts(lbl))
     
     # Update texture
     if lbl.material.tex != nothing
@@ -87,6 +81,8 @@ function compile!(lbl::Label)
     lbl.material.tex = texture(compile(lbl.font, lbl.text, linewidth=lbl.width, lineheightmult=lbl.lineheightmult, align=lbl.align))
     lbl
 end
+
+getlabelverts(lbl::Label) = getanchoredorigin(measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)..., lbl.origin)
 
 
 # Globals

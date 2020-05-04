@@ -14,7 +14,7 @@ use(wnd)
 initwindow()
 
 fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
-txt1 = Label("Test 123\n456", fnt, align=AlignCenter)
+txt1 = Label("Test 123\n456", fnt, align=AlignCenter, origin=TopAnchor)
 
 cam = Camera2D()
 ntts = [txt1]
