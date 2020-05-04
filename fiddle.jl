@@ -11,10 +11,10 @@ wndargs.width  = 800
 wndargs.height = 600
 wnd = Window(wndargs)
 use(wnd)
-FlixGL.initwindow()
+initwindow()
 
 fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
-txt1 = Label("Test 123", fnt)
+txt1 = Label("Test 123\n456", fnt)
 
 cam = Camera2D()
 ntts = [txt1]

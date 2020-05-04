@@ -143,11 +143,13 @@ function compile(font::Font, text::AbstractString; lineheight::AbstractFloat = 1
     text  = replace(text, r"\r\n|\n\r" => "\n")
     lines = remove_trailing_newlines!(split(text, "\n"))
     
+    lineheight = font.lineheight * lineheight
+    
     # TODO: Bearing.X can be negative - adjust for this on first characters of each line
     
     pen = MVector(1, height - font.baseline) # 1-based index
     for line ∈ lines
-        for char ∈ text
+        for char ∈ line
             glyph = getglyph(font, char)
             pasteglyph!(pixels, glyph, pen)
             pen += glyph.advance
