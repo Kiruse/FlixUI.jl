@@ -7,9 +7,11 @@ export Font, FontCache, FontGlyph
 export font, setfontsize!, getfontsize, setlineheight!, getlineheight, measure, getglyph
 export preloadchars, preload_roman_chars, preload_punctuation, preload_arabic_numbers
 export clearcache!, uncache!
-export TextAlignment, AlignLeft, AlignCenter, AlignRight
+export TextHorizontalAlignment, AlignLeft, AlignCenter, AlignRight
+export TextVerticalAlignment, AlignTop, AlignMiddle, AlignBottom
 
-@enum TextAlignment AlignLeft AlignCenter AlignRight
+@enum TextHorizontalAlignment AlignLeft AlignCenter AlignRight
+@enum TextVerticalAlignment AlignTop AlignMiddle AlignBottom
 
 
 mutable struct FontGlyph
@@ -94,9 +96,12 @@ function measure(font::Font, text::AbstractString; lineheightmult::Real = 1)
     if length(strip(text)) == 0 return (0, 0) end
     
     lines = normlines(text)
-    width  = reduce(max, (measure_linewidth(font, line) for line ∈ lines))
+    width  = measure_textwidth(font, lines)
     height = measure_textheight(font, length(lines); lineheightmult=lineheightmult)
     (width, height)
+end
+function measure_textwidth(font::Font, lines)
+    reduce(max, (measure_linewidth(font, line) for line ∈ lines))
 end
 function measure_textheight(font::Font, numlines::Integer; lineheightmult::Real)
     # Last line uses global glyph height to ensure it can hold any glyph
@@ -128,7 +133,7 @@ function getcolortype(ftpixelmode::UInt8)
     end
 end
 
-function compile(font::Font, text::AbstractString; linewidth::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, align::TextAlignment = AlignLeft)
+function compile(font::Font, text::AbstractString; linewidth::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, align::TextHorizontalAlignment = AlignLeft)
     lines = normlines(text)
     
     if linewidth == nothing
@@ -157,7 +162,7 @@ function compile(font::Font, text::AbstractString; linewidth::Optional{<:Integer
     Image2D(pixels)
 end
 
-function getpenxstart(font::Font, line, maxwidth::Integer, align::TextAlignment)
+function getpenxstart(font::Font, line, maxwidth::Integer, align::TextHorizontalAlignment)
     if align == AlignLeft
         return 1
     end

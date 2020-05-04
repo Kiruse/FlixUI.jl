@@ -11,8 +11,8 @@ struct LabelVAO <: AbstractVertexArrayData
 end
 function LabelVAO()
     internal = LowLevel.vertexarray()
-    vbo_coords = LowLevel.buffer(zeros(Float32, 8), LowLevel.BufferUsage.Dynamic, LowLevel.BufferUsage.Draw)
-    vbo_uvs    = LowLevel.buffer(Float32[0, 0, 1, 0, 1, 1, 0, 1], LowLevel.BufferUsage.Static, LowLevel.BufferUsage.Draw)
+    vbo_coords = LowLevel.buffer(zeros(Float32, 8),               LowLevel.BufferUsage.Dynamic, LowLevel.BufferUsage.Draw)
+    vbo_uvs    = LowLevel.buffer(Float32[0, 0, 1, 0, 1, 1, 0, 1], LowLevel.BufferUsage.Dynamic, LowLevel.BufferUsage.Draw)
     bind(internal, vbo_coords, 0, 2)
     bind(internal, vbo_uvs,    1, 2)
     LabelVAO(internal, vbo_coords, vbo_uvs)
@@ -49,19 +49,31 @@ mutable struct Label <: AbstractUIElement
     font::Font
     text::AbstractString
     width::Optional{<:Integer}
+    height::Optional{<:Integer}
     lineheightmult::Real
-    align::TextAlignment
+    halign::TextHorizontalAlignment
+    valign::TextVerticalAlignment
     origin::Anchor
     transform::Transform2D
     material::LabelMaterial
 end
-Label(font::Font) = Label(LabelVAO(), font, "", nothing, 0, AlignLeft, CenterAnchor, Transform2D(), LabelMaterial())
-function Label(text::AbstractString, font::Font; width::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, color::Color = White, align::TextAlignment = AlignLeft, origin::Anchor = CenterAnchor)
+Label(font::Font) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, Transform2D(), LabelMaterial())
+function Label(text::AbstractString, font::Font;
+               width::Optional{<:Integer} = nothing,
+               height::Optional{<:Integer},
+               lineheightmult::Real = 1.0,
+               color::Color = White,
+               halign::TextHorizontalAlignment = AlignLeft,
+               valign::TextVerticalAlignment = AlignTop,
+               origin::Anchor = CenterAnchor
+              )
     lbl = Label(font)
     lbl.text           = text
     lbl.width          = width
+    lbl.height         = height
     lbl.lineheightmult = lineheightmult
-    lbl.align          = align
+    lbl.halign         = halign
+    lbl.valign         = valign
     lbl.origin         = origin
     lbl.material.color = color
     compile!(lbl)
@@ -71,18 +83,75 @@ FlixGL.countverts(::Label) = 4
 FlixGL.drawmodeof(::Label) = LowLevel.TriangleFanDrawMode
 
 function compile!(lbl::Label)
+    img = compile(lbl.font, lbl.text, linewidth=lbl.width, lineheightmult=lbl.lineheightmult, align=lbl.halign)
+    imgw, imgh = size(img)
+    
     # Update vertex coordinates
     LowLevel.buffer_update(lbl.vao.vbo_coords, getlabelverts(lbl))
+    LowLevel.buffer_update(lbl.vao.vbo_uvs,    getlabeluvs(lbl, imgw, imgh))
     
     # Update texture
     if lbl.material.tex != nothing
         destroy(lbl.material.tex)
     end
-    lbl.material.tex = texture(compile(lbl.font, lbl.text, linewidth=lbl.width, lineheightmult=lbl.lineheightmult, align=lbl.align))
+    lbl.material.tex = wrapping!(texture(img), ClampToBorderWrap, ClampToBorderWrap, border=Black)
     lbl
 end
 
-getlabelverts(lbl::Label) = getanchoredorigin(measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)..., lbl.origin)
+function getlabelverts(lbl::Label)
+    if lbl.width != nothing && lbl.height != nothing
+        width  = lbl.width
+        height = lbl.height
+    elseif lbl.width != nothing
+        lines  = normlines(lbl.text)
+        width  = lbl.width
+        height = measure_textheight(lbl.font, length(lines); lineheightmult=lbl.lineheightmult)
+    elseif lbl.height != nothing
+        lines  = normlines(lbl.text)
+        width  = measure_textwidth(lbl.font, lines)
+        height = lbl.height
+    else
+        width, height = measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)
+    end
+    getanchoredorigin(width, height, lbl.origin)
+end
+
+function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
+    uvs = Float32[
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1
+    ]
+    
+    if lbl.width != nothing
+        ratio = lbl.width / textwidth
+        
+        if lbl.halign == AlignLeft
+            uvs[3] = uvs[5] = ratio
+        elseif lbl.halign == AlignCenter
+            uvs[1] = uvs[7] = 0.5-ratio/2
+            uvs[3] = uvs[5] = 0.5+ratio/2
+        elseif lbl.halign == AlignRight
+            uvs[1] = uvs[7] = 1-ratio
+        end
+    end
+    
+    if lbl.height != nothing
+        ratio = lbl.height / textheight
+        
+        if lbl.valign == AlignTop
+            uvs[2] = uvs[4] = 1-ratio
+        elseif lbl.valign == AlignMiddle
+            uvs[2] = uvs[4] = 0.5-ratio/2
+            uvs[6] = uvs[8] = 0.5+ratio/2
+        elseif lbl.valign == AlignBottom
+            uvs[6] = uvs[8] = ratio
+        end
+    end
+    
+    uvs
+end
 
 
 # Globals
