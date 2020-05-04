@@ -46,20 +46,31 @@ end
 
 mutable struct Label <: AbstractUIElement
     vao::LabelVAO
-    text::AbstractString
     font::Font
+    text::AbstractString
+    width::Optional{<:Integer}
+    lineheightmult::Real
+    align::TextAlignment
     transform::Transform2D
     material::LabelMaterial
 end
-Label(font::Font) = Label(LabelVAO(), "", font, Transform2D(), LabelMaterial())
-Label(text::AbstractString, font::Font; lineheight::Real = 1.0, color::Color = White) = compile!(Label(LabelVAO(), text, font, Transform2D(), LabelMaterial()), lineheight=lineheight, color=color)
+Label(font::Font) = Label(LabelVAO(), font, "", nothing, 0, AlignLeft, Transform2D(), LabelMaterial())
+function Label(text::AbstractString, font::Font; width::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, color::Color = White, align::TextAlignment = AlignLeft)
+    lbl = Label(font)
+    lbl.text           = text
+    lbl.width          = width
+    lbl.lineheightmult = lineheightmult
+    lbl.align          = align
+    lbl.material.color = color
+    compile!(lbl)
+end
 
 FlixGL.countverts(::Label) = 4
 FlixGL.drawmodeof(::Label) = LowLevel.TriangleFanDrawMode
 
-function compile!(lbl::Label; lineheight::Real = 1.0, color::Optional{Color} = nothing)
+function compile!(lbl::Label)
     # Update vertex coordinates
-    width, height = measure(lbl.font, lbl.text, lineheight=lineheight)
+    width, height = measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)
     halfwidth, halfheight = (width, height) ./ 2
     verts = Float32[
         -halfwidth, -halfheight,
@@ -73,10 +84,7 @@ function compile!(lbl::Label; lineheight::Real = 1.0, color::Optional{Color} = n
     if lbl.material.tex != nothing
         destroy(lbl.material.tex)
     end
-    lbl.material.tex = texture(compile(lbl.font, lbl.text, lineheight=lineheight))
-    if color != nothing
-        lbl.material.color = color
-    end
+    lbl.material.tex = texture(compile(lbl.font, lbl.text, linewidth=lbl.width, lineheightmult=lbl.lineheightmult, align=lbl.align))
     lbl
 end
 

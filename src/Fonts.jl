@@ -7,6 +7,10 @@ export Font, FontCache, FontGlyph
 export font, setfontsize!, getfontsize, setlineheight!, getlineheight, measure, getglyph
 export preloadchars, preload_roman_chars, preload_punctuation, preload_arabic_numbers
 export clearcache!, uncache!
+export TextAlignment, AlignLeft, AlignCenter, AlignRight
+
+@enum TextAlignment AlignLeft AlignCenter AlignRight
+
 
 mutable struct FontGlyph
     img::Image2D
@@ -85,25 +89,18 @@ preload_arabic_numbers(font::Font) = preloadchars(font, "0123456789")
 
 """
 Measures dimensions of the provided text. If word wrapping is desired, apply `wordwrap` function before calling `measure`.
-
-`lineheight` is a factor by which to multiply the regular
 """
-function measure(font::Font, text::AbstractString; lineheight::Real = 1)
+function measure(font::Font, text::AbstractString; lineheightmult::Real = 1)
     if length(strip(text)) == 0 return (0, 0) end
     
-    lineheight = round(Int, lineheight * font.lineheight)
-    
-    # Normalize newlines
-    text  = replace(text, r"\r\n|\n\r" => '\n')
-    lines = remove_trailing_newlines!(split(text, '\n'))
-    
+    lines = normlines(text)
     width  = reduce(max, (measure_linewidth(font, line) for line ∈ lines))
-    height = measure_textheight(font, length(lines); lineheight=lineheight)
+    height = measure_textheight(font, length(lines); lineheightmult=lineheightmult)
     (width, height)
 end
-function measure_textheight(font::Font, numlines::Integer; lineheight::Real)
+function measure_textheight(font::Font, numlines::Integer; lineheightmult::Real)
     # Last line uses global glyph height to ensure it can hold any glyph
-    (numlines-1) * lineheight + font.ascender - font.descender
+    round(Int, (numlines-1) * font.lineheight * lineheightmult + font.ascender - font.descender)
 end
 function measure_linewidth(font::Font, text)
     @assert '\n' ∉ text
@@ -131,29 +128,49 @@ function getcolortype(ftpixelmode::UInt8)
     end
 end
 
-function compile(font::Font, text::AbstractString; lineheight::AbstractFloat = 1.0)
-    width, height = measure(font, text, lineheight=lineheight)
+function compile(font::Font, text::AbstractString; linewidth::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, align::TextAlignment = AlignLeft)
+    lines = normlines(text)
+    
+    if linewidth == nothing
+        width, height = measure(font, text, lineheightmult=lineheightmult)
+    else
+        width  = linewidth
+        height = measure_textheight(font, length(lines), lineheightmult=lineheightmult)
+    end
+    
     pixels = zeros(findcolortype(font, text), height, width)
-    
-    text  = replace(text, r"\r\n|\n\r" => '\n')
-    lines = remove_trailing_newlines!(split(text, '\n'))
-    
-    lineheight = round(Int, font.lineheight * lineheight)
+    lineheight = round(Int, font.lineheight * lineheightmult)
     
     # TODO: Bearing.X can be negative - adjust for this on first characters of each line
     
     pen = MVector(1, height - font.baseline) # 1-based index
     for line ∈ lines
+        pen[1] = getpenxstart(font, line, width, align)
         for char ∈ line
             glyph = getglyph(font, char)
             pasteglyph!(pixels, glyph, pen)
             pen += glyph.advance
         end
-        pen[1]  = 1
         pen[2] -= lineheight
     end
     
     Image2D(pixels)
+end
+
+function getpenxstart(font::Font, line, maxwidth::Integer, align::TextAlignment)
+    if align == AlignLeft
+        return 1
+    end
+    
+    linewidth = measure_linewidth(font, line)
+    diff = maxwidth - linewidth
+    if align == AlignRight
+        return diff + 1
+    elseif align == AlignCenter
+        return diff ÷ 2 + 1
+    else
+        error("Unknown text alignment $align")
+    end
 end
 
 function pasteglyph!(pxs::Array{<:AbstractColor, 2}, glyph::FontGlyph, pen)
@@ -261,6 +278,11 @@ uncache!(font::Font, chars::Union{<:AbstractString, Char}) = uncache!(font, font
 
 
 # Helpers
+
+function normlines(text::AbstractString)
+    text = replace(text, r"\r\n|\n\r" => '\n')
+    remove_trailing_newlines!(split(text, '\n'))
+end
 
 function remove_trailing_newlines!(lines::AbstractVector)
     if length(lines) == 0 return lines end
