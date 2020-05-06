@@ -1,13 +1,14 @@
 export FontError
 
-abstract type AbstractSimpleError <: Exception end
+abstract type AbstractFlixUIError <: Exception end
+abstract type AbstractSimpleError <: AbstractFlixUIError end
 
-struct FontError <: Exception
+struct FontError <: AbstractSimpleError
     message::AbstractString
 end
 FontError() = "generic font error"
 
-function Base.show(io::IO, err::T) where {T<:AbstractSimpleError}
+function Base.show(io::IO, err::AbstractSimpleError)
     if length(err.message) == 0
         write(io, "Font Error")
     else

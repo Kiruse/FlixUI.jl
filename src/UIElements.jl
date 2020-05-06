@@ -1,21 +1,19 @@
-export AbstractUIElement
 export Anchor, TopAnchor, LeftAnchor, RightAnchor, BottomAnchor, TopLeftAnchor, TopRightAnchor, BottomLeftAnchor, BottomRightAnchor, CenterAnchor
 
-abstract type AbstractUIElement <: AbstractEntity2D end
-
-@enum(Anchor,
-    TopAnchor,
-    LeftAnchor,
-    RightAnchor,
-    BottomAnchor,
-    TopLeftAnchor,
-    TopRightAnchor,
-    BottomLeftAnchor,
-    BottomRightAnchor,
+@enum Anchor begin
+    TopAnchor
+    LeftAnchor
+    RightAnchor
+    BottomAnchor
+    TopLeftAnchor
+    TopRightAnchor
+    BottomLeftAnchor
+    BottomRightAnchor
     CenterAnchor
-)
+end
 
-include("./UI.Label.jl")
+include("./UI.Labels.jl")
+include("./UI.Buttons.jl")
 
 anchor!(elem::AbstractUIElement, anchor::Anchor) = elem.anchor = anchor
 

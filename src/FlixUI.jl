@@ -1,9 +1,11 @@
 module FlixUI
+using GLFW
 using FlixGL
 using FreeType
 using StaticArrays
+using BitFlags
 import FlixGL.LowLevel
-export destroy, compile, compile!
+export destroy, compile, compile!, tick!
 
 const dir_assets  = "$(@__DIR__)/../assets"
 const dir_shaders = "$dir_assets/shaders"
@@ -12,6 +14,8 @@ const Optional{T} = Union{Nothing, T}
 include("./Errors.jl")
 include("./EventDispatcher.jl")
 include("./Fonts.jl")
+include("./UIAbstracts.jl")
+include("./InputSystems.jl")
 include("./UIElements.jl")
 
 function __init__()

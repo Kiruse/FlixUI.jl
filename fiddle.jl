@@ -2,7 +2,6 @@ push!(LOAD_PATH, @__DIR__)
 
 using FlixGL
 using FlixUI
-using GLFW
 
 wndargs = WindowCreationArgs()
 wndargs.title = "FlixUI Fiddle"
@@ -12,6 +11,7 @@ wndargs.height = 600
 wnd = Window(wndargs)
 use(wnd)
 initwindow()
+insys = InputSystem(wnd)
 
 fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
 txt1 = Label("Test 123\n456", fnt, width=200, height=60, halign=AlignRight, valign=AlignBottom, origin=TopLeftAnchor)
@@ -19,8 +19,13 @@ txt1 = Label("Test 123\n456", fnt, width=200, height=60, halign=AlignRight, vali
 cam = Camera2D()
 ntts = [txt1]
 
+t0 = time()
 while !wantsclose()
-    pollevents()
+    global t0, inputt0
+    t1 = time()
+    dt = t1 - t0
+    t0 = t1
+    tick!(insys, dt)
     render(ForwardRenderPipeline, cam, ntts)
     flip()
 end
