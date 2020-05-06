@@ -11,7 +11,7 @@ wndargs.height = 600
 wnd = Window(wndargs)
 use(wnd)
 initwindow()
-insys = InputSystem(wnd)
+uisys = UISystem(wnd)
 
 fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
 txt1 = Label("Test 123\n456", fnt, width=200, height=60, halign=AlignRight, valign=AlignBottom, origin=TopLeftAnchor)
@@ -21,11 +21,11 @@ ntts = [txt1]
 
 t0 = time()
 while !wantsclose()
-    global t0, inputt0
+    global t0
     t1 = time()
     dt = t1 - t0
     t0 = t1
-    tick!(insys, dt)
+    tick!(uisys, dt)
     render(ForwardRenderPipeline, cam, ntts)
     flip()
 end
