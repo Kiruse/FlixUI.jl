@@ -56,6 +56,12 @@ mutable struct Label <: AbstractUIElement
     origin::Anchor
     transform::Transform2D
     material::LabelMaterial
+    
+    function Label(vao, font, text, width, height, lineheightmult, halign, valign, origin, transform, material)
+        inst = new(vao, font, text, width, height, lineheightmult, halign, valign, origin, transform, material)
+        transform.customdata = inst
+        inst
+    end
 end
 Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, transform, LabelMaterial())
 function Label(text::AbstractString, font::Font;

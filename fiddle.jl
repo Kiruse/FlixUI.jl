@@ -11,7 +11,7 @@ uisys = UISystem(wnd)
 world = World{Transform2D{Float64}}()
 
 fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
-btn1 = Button(load_image(PNGImageFormat, "./assets/textures/ButtonSample1.png"))
+btn1 = Button(load_image(PNGImageFormat, "./assets/textures/ButtonSample1.png"), ButtonLabel("Some Button", fnt, padding=3))
 register!(uisys, btn1)
 push!(world, btn1)
 translate!(btn1, Vector2(50, 50))
@@ -25,7 +25,7 @@ hook!(btn1, :MouseLeave) do
 end
 
 cam = Camera2D()
-ntts = [btn1]
+ntts = [btn1, first(childrenof(btn1))]
 
 t0 = time()
 while !wantsclose()
