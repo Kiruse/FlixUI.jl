@@ -1,5 +1,6 @@
 module FlixUI
 using GLFW
+using VPEWorlds
 using FlixGL
 using FreeType
 using StaticArrays
@@ -15,6 +16,7 @@ include("./Errors.jl")
 include("./EventDispatcher.jl")
 include("./Fonts.jl")
 include("./UIAbstracts.jl")
+include("./Bounds.jl")
 include("./UISystems.jl")
 include("./UIElements.jl")
 

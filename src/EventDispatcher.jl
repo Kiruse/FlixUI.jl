@@ -1,12 +1,21 @@
-export EventDispatcher
+export EventDispatcher, ListenersType
 export hook!, hookonce!, unhook!, emit
 
+const ListenersType = Dict{Symbol, Vector}
+
+abstract type EventDispatcherness end
+struct IsEventDispatcher <: EventDispatcherness end
+struct NoEventDispatcher <: EventDispatcherness end
+
 struct EventDispatcher
-    listeners::Dict{Symbol, Vector}
+    listeners::ListenersType
 end
 EventDispatcher() = EventDispatcher(Dict())
 
-eventlisteners(disp) = disp.listeners
+eventdispatcherness(T::Type) = hasmethod(eventlisteners, (T,)) ? IsEventDispatcher() : NoEventDispatcher()
+eventdispatcherness(::Type{EventDispatcher}) = IsEventDispatcher()
+
+eventlisteners(disp::EventDispatcher) = disp.listeners
 
 """
 Hook the specified listener. Whether the same listener may be hooked (and called) more than once depends on the
@@ -50,7 +59,13 @@ end
 """
 Emit an event on the given dispatcher with provided args and keyword args.
 """
-function emit(disp, sym::Symbol, args...; kwargs...)
+emit(disp::D, sym::Symbol, args...; kwargs...) where D = emit(eventdispatcherness(D), disp, sym, args...; kwargs...)
+
+function emit(::NoEventDispatcher, disp, sym::Symbol, args...; kwargs...)
+    # noop
+end
+
+function emit(::IsEventDispatcher, disp, sym::Symbol, args...; kwargs...)
     listeners = eventlisteners(disp)
     results = Vector(undef, length(listeners))
     if haskey(listeners, sym)

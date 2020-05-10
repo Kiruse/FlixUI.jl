@@ -57,7 +57,7 @@ mutable struct Label <: AbstractUIElement
     transform::Transform2D
     material::LabelMaterial
 end
-Label(font::Font) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, Transform2D(), LabelMaterial())
+Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, transform, LabelMaterial())
 function Label(text::AbstractString, font::Font;
                width::Optional{<:Integer} = nothing,
                height::Optional{<:Integer},
@@ -65,9 +65,10 @@ function Label(text::AbstractString, font::Font;
                color::Color = White,
                halign::TextHorizontalAlignment = AlignLeft,
                valign::TextVerticalAlignment = AlignTop,
-               origin::Anchor = CenterAnchor
+               origin::Anchor = CenterAnchor,
+               transform::Transform2D = Transform2D{Float64}()
               )
-    lbl = Label(font)
+    lbl = Label(font, transform)
     lbl.text           = text
     lbl.width          = width
     lbl.height         = height

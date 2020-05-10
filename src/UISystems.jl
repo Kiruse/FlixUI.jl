@@ -38,28 +38,31 @@ The following events exist:
  - :MousePress, :MouseRelease
  - :Scroll, :ScrollX, :ScrollY
 
+The :MouseMove, :MousePress, :MouseRelease, :MouseEnter, and :MouseLeave events propagate to elements underneath the cursor.
+
 Note: When the mouse cursor is being captured, the mouse position is virtualized. In order to determine the offset, the
 delta between current and last virtual mouse position must be calculated.
  """
 mutable struct UISystem
     window::Window
-    elements::Set{AbstractUIElement}
+    elements::Vector{AbstractUIElement}
+    hoveredelements::Set{AbstractUIElement}
     listeners::Dict{Symbol, Vector}
     ismouseover::Bool
     scroll::Vector2{Float64}
     
-    function UISystem(wnd, elements, listeners, ismouseover, scroll)
-        inst = new(wnd, elements, listeners, ismouseover, scroll)
-        GLFW.SetKeyCallback(        wnd.handle, curry(UISystemGLFWEvents.onkeyinput,       inst))
-        GLFW.SetCharCallback(       wnd.handle, curry(UISystemGLFWEvents.oncharinput,      inst))
+    function UISystem(wnd, elements, hoveredelements, listeners, ismouseover, scroll)
+        inst = new(wnd, elements, hoveredelements, listeners, ismouseover, scroll)
         GLFW.SetCursorPosCallback(  wnd.handle, curry(UISystemGLFWEvents.onmousemoveinput, inst))
         GLFW.SetCursorEnterCallback(wnd.handle, curry(UISystemGLFWEvents.onmouseover,      inst))
+        GLFW.SetKeyCallback(        wnd.handle, curry(UISystemGLFWEvents.onkeyinput,       inst))
+        GLFW.SetCharCallback(       wnd.handle, curry(UISystemGLFWEvents.oncharinput,      inst))
         GLFW.SetMouseButtonCallback(wnd.handle, curry(UISystemGLFWEvents.onmouseinput,     inst))
         GLFW.SetScrollCallback(     wnd.handle, curry(UISystemGLFWEvents.onscrollinput,    inst))
         inst
     end
 end
-UISystem(wnd::Window) = UISystem(wnd, Set(), Dict(), false, Vector2{Float64}(0, 0))
+UISystem(wnd::Window) = UISystem(wnd, Vector(), Set(), Dict(), false, Vector2{Float64}(0, 0))
 
 
 module UISystemGLFWEvents
@@ -82,7 +85,16 @@ function oncharinput(uisys, _, char)
 end
 
 function onmousemoveinput(uisys, _, xpos, ypos)
-    emit(uisys, :MouseMove, Vector2{Float64}(xpos, ypos))
+    wndwidth, wndheight = size(activewindow())
+    pos = Vector2{Float64}(xpos - wndwidth/2, -ypos + wndheight/2)
+    
+    oldhovered = uisys.hoveredelements
+    newhovered = uisys.hoveredelements = Set{AbstractUIElement}(filter(elem->ispointover(elem, pos), uisys.elements))
+    
+    emit(uisys, :MouseMove, pos)
+    foreach(elem->emit(elem, :MouseMove, pos), uisys.hoveredelements)
+    foreach(elem->emit(elem, :MouseLeave), setdiff(oldhovered, newhovered))
+    foreach(elem->emit(elem, :MouseEnter), setdiff(newhovered, oldhovered))
 end
 
 function onmouseover(uisys, _, entered)
@@ -95,10 +107,13 @@ function onmouseover(uisys, _, entered)
 end
 
 function onmouseinput(uisys, _, button, action, _)
+    btn = MouseButton(Int(button))
     if action == GLFW.PRESS
-        emit(uisys, :MousePress,   MouseButton(Int(button)))
+        emit(uisys, :MousePress, btn)
+        foreach(elem->emit(elem, :MousePress, btn), uisys.hoveredelements)
     else
-        emit(uisys, :MouseRelease, MouseButton(Int(button)))
+        emit(uisys, :MouseRelease, btn)
+        foreach(elem->emit(elem, :MouseRelease, btn), uisys.hoveredelements)
     end
 end
 

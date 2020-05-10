@@ -1,4 +1,5 @@
 export Anchor, TopAnchor, LeftAnchor, RightAnchor, BottomAnchor, TopLeftAnchor, TopRightAnchor, BottomLeftAnchor, BottomRightAnchor, CenterAnchor
+export ispointover
 
 @enum Anchor begin
     TopAnchor
@@ -50,4 +51,15 @@ function getanchoredorigin(width::Integer, height::Integer, origin::Anchor)
     end
     
     verts
+end
+
+
+function tick!(elem::AbstractUIElement, delta::Real) end
+
+function ispointover(elem::AbstractUIElement, point)
+    tf    = FlixGL.transformof(elem)
+    T     = transformparam(typeof(tf))
+    aabb  = bounds(elem)
+    point = world2obj(tf) * Vector3{T}(point..., 1)
+    point[1] > aabb.min[1] && point[1] < aabb.max[1] && point[2] > aabb.min[2] && point[2] < aabb.max[2]
 end
