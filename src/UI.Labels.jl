@@ -66,7 +66,7 @@ end
 Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, transform, LabelMaterial())
 function Label(text::AbstractString, font::Font;
                width::Optional{<:Integer} = nothing,
-               height::Optional{<:Integer},
+               height::Optional{<:Integer} = nothing,
                lineheightmult::Real = 1.0,
                color::Color = White,
                halign::TextHorizontalAlignment = AlignLeft,
