@@ -25,7 +25,7 @@ hook!(btn1, :MouseLeave) do
 end
 
 cam = Camera2D()
-ntts = [btn1, first(childrenof(btn1))]
+ntts = childrenof(btn1)
 
 t0 = time()
 while !wantsclose()
