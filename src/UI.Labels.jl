@@ -102,7 +102,7 @@ function compile!(lbl::Label)
     
     # Update texture
     if lbl.material.tex !== nothing
-        destroy(lbl.material.tex)
+        FlixGL.destroy(lbl.material.tex)
     end
     lbl.material.tex = wrapping!(texture(img), ClampToBorderWrap, ClampToBorderWrap, border=Black)
     lbl
@@ -207,6 +207,31 @@ function (fct::ContainerLabelFactory)(width::Integer, height::Integer, origin::A
     lbl
 end
 
+
+##############
+# Base methods
+
+# TODO: Get font name?
+Base.show(io::IO, lbl::Label) = write(io, "Label(<some font>, $(lblsizestr(lbl)), $(lbl.lineheightmult)× line height, $(lbl.halign), $(lbl.valign), $(lbl.origin), $(lblvisibilitystr(lbl)))")
+
+function lblsizestr(lbl::Label)
+    if lbl.width !== nothing && lbl.height !== nothing
+        "$(lbl.width)×$(lbl.height)"
+    elseif lbl.width !== nothing
+        "$(lbl.width)×min"
+    elseif lbl.height !== nothing
+        "min×$(lbl.height)"
+    else
+        "min×min"
+    end
+end
+function lblvisibilitystr(lbl::Label)
+    if lbl.visible
+        "visible"
+    else
+        "hidden"
+    end
+end
 
 #########
 # Globals

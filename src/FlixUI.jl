@@ -15,6 +15,7 @@ const Optional{T} = Union{Nothing, T}
 include("./Errors.jl")
 include("./Fonts.jl")
 include("./UIAbstracts.jl")
+include("./UIInputConfigs.jl")
 include("./UISystems.jl")
 include("./UIElements.jl")
 

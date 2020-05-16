@@ -13,8 +13,6 @@ struct Button <: AbstractUIElement
         inst
     end
 end
-VPECore.eventlisteners(btn::Button) = btn.listeners
-
 function Button(width::Integer, height::Integer, img::BackgroundImageFactory, label::ContainerLabelFactory; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
     btn = Button(width, height, img, transform=transform, origin=origin)
     parent!(label(width, height, origin)::Label, btn)
@@ -27,3 +25,12 @@ function Button(width::Integer, height::Integer, img::BackgroundImageFactory; tr
 end
 Button(img::BackgroundImageFactory, label::ContainerLabelFactory; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img.image)..., img, label, transform=transform, origin=origin)
 Button(img::BackgroundImageFactory; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img.image)..., img, transform=transform, origin=origin)
+
+VPECore.eventlisteners(btn::Button) = btn.listeners
+uiinputconfig(::Button) = WantsMouseInput
+
+
+##############
+# Base methods
+
+Base.show(io::IO, btn::Button) = write(io, "Button($(btn.width)×$(btn.height), $(btn.origin))")

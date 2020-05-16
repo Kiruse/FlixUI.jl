@@ -1,5 +1,5 @@
 export Anchor, TopAnchor, LeftAnchor, RightAnchor, BottomAnchor, TopLeftAnchor, TopRightAnchor, BottomLeftAnchor, BottomRightAnchor, CenterAnchor
-export vertices, ispointover
+export vertices, ispointover, uiinputconfig
 
 @enum Anchor begin
     TopAnchor
@@ -16,6 +16,7 @@ end
 include("./UI.Labels.jl")
 include("./UI.Images.jl")
 include("./UI.Buttons.jl")
+include("./UI.Textfields.jl")
 
 
 function VPECore.tick!(elem::AbstractUIElement, dt::AbstractFloat) end
@@ -64,6 +65,8 @@ end
 function vertices(elem::AbstractUIElement)
     getanchoredrectcoords(size(elem)..., elem.origin)
 end
+
+uiinputconfig(::AbstractUIElement) = WantsNoInput
 
 # Borrowed from Bounds.jl
 function bounds(elem::AbstractUIElement)

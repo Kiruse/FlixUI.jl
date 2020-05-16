@@ -5,15 +5,17 @@
 # TODO: Support gamepads.
 
 export UISystem
+export InputMode, GameInputMode, UIInputMode
 export PressState, Pressed, Released, Repeated
 export CursorMode, NormalCursor, HiddenCursor, CapturedCursor
 export MouseButton, LeftMouseButton, RightMouseButton, MiddleMouseButton, ForwardMouseButton, BackwardMouseButton, MouseButton6, MouseButton7, MouseButton8
-export register!, remove!
+export register!, remove!, focusedelement, focuselement!, setinputmode!, getinputmode
 export cursorvisibility, showcursor, hidecursor, capturecursor
 export getmousebutton
 export postvanityevent
 export keyname, getscancode
 
+@enum InputMode GameInputMode UIInputMode
 @enum PressState Pressed Released Repeated
 @enum CursorMode NormalCursor HiddenCursor CapturedCursor
 @enum MouseButton begin
@@ -37,22 +39,29 @@ The following events exist:
  - :MouseEnter, :MouseLeave
  - :MousePress, :MouseRelease
  - :Scroll, :ScrollX, :ScrollY
+ - :Focus, :Defocus
 
 The :MouseMove, :MousePress, :MouseRelease, :MouseEnter, and :MouseLeave events propagate to elements underneath the cursor.
+
+The :Focus and :Defocus events are only emitted on a UIElement, not on the UISystem/Window itself. It is tirggered when a
+new item is set to be focused by the UISystem. Whereby :Focus is emitted on the newly focused element and :Defocus is emitted
+on the element that was previously focused.
 
 Note: When the mouse cursor is being captured, the mouse position is virtualized. In order to determine the offset, the
 delta between current and last virtual mouse position must be calculated.
  """
 mutable struct UISystem
     window::Window
+    inputmode::InputMode
+    focuselement::Optional{AbstractUIElement}
     elements::Vector{AbstractUIElement}
     hoveredelements::Set{AbstractUIElement}
     listeners::ListenersType
     ismouseover::Bool
     scroll::Vector2{Float64}
     
-    function UISystem(wnd, elements, hoveredelements, listeners, ismouseover, scroll)
-        inst = new(wnd, elements, hoveredelements, listeners, ismouseover, scroll)
+    function UISystem(wnd, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
+        inst = new(wnd, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
         GLFW.SetCursorPosCallback(  wnd.handle, curry(UISystemGLFWEvents.onmousemoveinput, inst))
         GLFW.SetCursorEnterCallback(wnd.handle, curry(UISystemGLFWEvents.onmouseover,      inst))
         GLFW.SetKeyCallback(        wnd.handle, curry(UISystemGLFWEvents.onkeyinput,       inst))
@@ -62,7 +71,7 @@ mutable struct UISystem
         inst
     end
 end
-UISystem(wnd::Window) = UISystem(wnd, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
+UISystem(wnd::Window) = UISystem(wnd, GameInputMode, nothing, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
 
 VPECore.eventlisteners(sys::UISystem) = sys.listeners
 
@@ -75,16 +84,24 @@ using ..FlixUI
 
 function onkeyinput(uisys, _, _, scancode, action, _)
     if action == GLFW.PRESS
-        emit(uisys, :KeyPress, scancode)
+        keyevent = :KeyPress
     elseif action == GLFW.REPEAT
-        emit(uisys, :KeyRepeat, scancode)
+        keyevent = :KeyRepeat
     else
-        emit(uisys, :KeyRelease, scancode)
+        keyevent = :KeyRelease
+    end
+    
+    emit(uisys, keyevent, scancode)
+    if uisys.inputmode == UIInputMode && uisys.focuselement !== nothing && wantskeyboardinput(uisys.focuselement)
+        emit(uisys.focuselement, keyevent, scancode)
     end
 end
 
 function oncharinput(uisys, _, char)
     emit(uisys, :CharReceived, char)
+    if uisys.inputmode == UIInputMode && uisys.focuselement !== nothing && wantstextinput(uisys.focuselement)
+        emit(uisys.focuselement, :CharReceived, char)
+    end
 end
 
 function onmousemoveinput(uisys, _, xpos, ypos)
@@ -95,9 +112,11 @@ function onmousemoveinput(uisys, _, xpos, ypos)
     newhovered = uisys.hoveredelements = Set{AbstractUIElement}(filter(elem->ispointover(elem, pos), uisys.elements))
     
     emit(uisys, :MouseMove, pos)
-    foreach(elem->emit(elem, :MouseMove, pos), uisys.hoveredelements)
-    foreach(elem->emit(elem, :MouseLeave), setdiff(oldhovered, newhovered))
-    foreach(elem->emit(elem, :MouseEnter), setdiff(newhovered, oldhovered))
+    if uisys.inputmode == UIInputMode
+        foreach(elem->emit(elem, :MouseMove, pos), uisys.hoveredelements)
+        foreach(elem->emit(elem, :MouseLeave), filter!(elem->wantsmouseinput(elem), setdiff(oldhovered, newhovered)))
+        foreach(elem->emit(elem, :MouseEnter), filter!(elem->wantsmouseinput(elem), setdiff(newhovered, oldhovered)))
+    end
 end
 
 function onmouseover(uisys, _, entered)
@@ -113,10 +132,14 @@ function onmouseinput(uisys, _, button, action, _)
     btn = MouseButton(Int(button))
     if action == GLFW.PRESS
         emit(uisys, :MousePress, btn)
-        foreach(elem->emit(elem, :MousePress, btn), uisys.hoveredelements)
+        if uisys.inputmode == UIInputMode
+            foreach(elem->emit(elem, :MousePress, btn), filter!(elem->wantsmouseinput(elem), uisys.hoveredelements))
+        end
     else
         emit(uisys, :MouseRelease, btn)
-        foreach(elem->emit(elem, :MouseRelease, btn), uisys.hoveredelements)
+        if uisys.inputmode == UIInputMode
+            foreach(elem->emit(elem, :MouseRelease, btn), filter!(elem->wantsmouseinput(elem), uisys.hoveredelements))
+        end
     end
 end
 
@@ -125,11 +148,42 @@ function onscrollinput(uisys, _, xoffset, yoffset)
     emit(uisys, :Scroll, scroll)
     if scroll[1] != 0
         emit(uisys, :ScrollX, scroll[1])
-    elseif scroll[2] != 0
+    end
+    if scroll[2] != 0
         emit(uisys, :ScrollY, scroll[2])
     end
+    
+    if uisys.inputmode == UIInputMode && uisys.focuselement !== nothing && wantsscrollinput(uisys.focuselement)
+        emit(uisys.focuselement, :Scroll, scroll)
+        if scroll[1] != 0
+            emit(uisys.focuselement, :ScrollX, scroll[1])
+        end
+        if scroll[2] != 0
+            emit(uisys.focuselement, :ScrollY, scroll[2])
+        end
+    end
 end
+
+wantsmouseinput(   elem) = WantsMouseInput    ∈ uiinputconfig(elem)
+wantskeyboardinput(elem) = WantsKeyboardInput ∈ uiinputconfig(elem)
+wantstextinput(    elem) = WantsTextInput     ∈ uiinputconfig(elem)
+wantsscrollinput(  elem) = WantsScrollInput   ∈ uiinputconfig(elem)
 end # module UISystemGLFWEvents
+
+focusedelement(uisys::UISystem) = uisys.focuselement
+function focuselement!(uisys::UISystem, elem::Optional{AbstractUIElement})
+    if uisys.focuselement !== nothing
+        emit(uisys.focuselement, :Defocus)
+    end
+    
+    uisys.focuselement = elem
+    
+    if elem !== nothing
+        emit(elem, :Focus)
+    end
+    
+    elem
+end
 
 function register!(uisys::UISystem, elem)
     push!(uisys.elements, elem)
@@ -146,10 +200,14 @@ function FlixUI.tick!(uisys::UISystem, dt::AbstractFloat)
     GLFW.PollEvents()
 end
 
-cursorvisibility(uisys::UISystem, mode::CursorMode) = GLFW.SetInputMode(uisys.window.handle, GLFW.CURSOR, mode == HiddenCursor ? GLFW.CURSOR_HIDDEN : mode == CapturedCursor ? GLFW.CURSOR_DISABLED : GLFW.CURSOR_NORMAL)
-showcursor(uisys::UISystem)    = cursorvisibility(uisys, NormalCursor)
-hidecursor(uisys::UISystem)    = cursorvisibility(uisys, HiddenCursor)
-capturecursor(uisys::UISystem) = cursorvisibility(uisys, CapturedCursor)
+getinputmode(uisys::UISystem) = uisys.inputmode
+setinputmode!(uisys::UISystem, mode::InputMode) = uisys.inputmode = mode
+
+getcursorvisibility(uisys::UISystem) = GLFW.GetInputMode(uisys.window.handle, GLFW.CURSOR)
+setcursorvisibility(uisys::UISystem, mode::CursorMode) = GLFW.SetInputMode(uisys.window.handle, GLFW.CURSOR, mode == HiddenCursor ? GLFW.CURSOR_HIDDEN : mode == CapturedCursor ? GLFW.CURSOR_DISABLED : GLFW.CURSOR_NORMAL)
+showcursor(uisys::UISystem)    = setcursorvisibility(uisys, NormalCursor)
+hidecursor(uisys::UISystem)    = setcursorvisibility(uisys, HiddenCursor)
+capturecursor(uisys::UISystem) = setcursorvisibility(uisys, CapturedCursor)
 
 """
 Waits until the input system receives an input event. If asynchronous behavior is desired, use `tick!` instead.

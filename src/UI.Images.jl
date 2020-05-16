@@ -43,6 +43,11 @@ end
 (factory::BackgroundImageFactory)(width::Integer, height::Integer, origin::Anchor) = Image(width, height, factory.image, origin)
 
 
+##############
+# Base methods
+
+Base.show(io::IO, img::Image) = write(io, "Image($(img.width)×$(img.height), $(img.origin), $(length(img.listeners)) listeners)")
+
 #########
 # Globals
 
