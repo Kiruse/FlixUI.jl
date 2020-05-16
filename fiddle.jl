@@ -1,5 +1,6 @@
 push!(LOAD_PATH, @__DIR__)
 
+using VPECore
 using FlixGL
 using FlixUI
 
@@ -9,13 +10,14 @@ initwindow()
 uisys = UISystem(wnd)
 
 world = World{Transform2D{Float64}}()
+push!(world, uisys)
 
 fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
-btn1 = Button(load_image(PNGImageFormat, "./assets/textures/ButtonSample1.png"), ButtonLabel("Some Button", fnt, padding=3))
+btn1 = Button(BackgroundImageFactory(load_image(PNGImageFormat, "./assets/textures/ButtonSample1.png")), ContainerLabelFactory("Some Button", fnt, padding=3), origin=TopLeftAnchor)
+translate!(btn1, (50, 50))
+rotate!(btn1, deg2rad(45))
 register!(uisys, btn1)
 push!(world, btn1)
-translate!(btn1, Vector2(50, 50))
-rotate!(btn1, deg2rad(45))
 
 hook!(btn1, :MouseEnter) do
     println("Mouse entered button")
@@ -25,19 +27,13 @@ hook!(btn1, :MouseLeave) do
 end
 
 cam = Camera2D()
-ntts = childrenof(btn1)
 
-t0 = time()
-while !wantsclose()
-    global t0
-    t1 = time()
-    dt = t1 - t0
-    t0 = t1
-    
-    tick!(uisys, dt)
-    update(world)
+frameloop() do dt
+    tick!(world, dt)
     
     render_background(ForwardRenderPipeline)
-    render(ForwardRenderPipeline, WorldRenderSpace, cam, ntts)
+    render(ForwardRenderPipeline, WorldRenderSpace, cam, getrenderables(AbstractEntity2D, world, UIEntity))
     flip()
+    
+    return !wantsclose()
 end

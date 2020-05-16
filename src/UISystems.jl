@@ -67,6 +67,7 @@ UISystem(wnd::Window) = UISystem(wnd, Vector(), Set(), Dict(), false, Vector2{Fl
 
 module UISystemGLFWEvents
 using GLFW
+using VPECore
 using FlixGL
 using ..FlixUI
 
@@ -138,7 +139,7 @@ function remove!(uisys::UISystem, elem)
     uisys
 end
 
-function tick!(uisys::UISystem, delta::Real)
+function FlixUI.tick!(uisys::UISystem, dt::AbstractFloat)
     uisys.scroll = Vector2{Float64}(0, 0)
     GLFW.PollEvents()
 end

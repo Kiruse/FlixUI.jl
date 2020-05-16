@@ -1,5 +1,5 @@
 export Anchor, TopAnchor, LeftAnchor, RightAnchor, BottomAnchor, TopLeftAnchor, TopRightAnchor, BottomLeftAnchor, BottomRightAnchor, CenterAnchor
-export ispointover
+export vertices, ispointover
 
 @enum Anchor begin
     TopAnchor
@@ -14,47 +14,64 @@ export ispointover
 end
 
 include("./UI.Labels.jl")
+include("./UI.Images.jl")
 include("./UI.Buttons.jl")
 
-anchor!(elem::AbstractUIElement, anchor::Anchor) = elem.anchor = anchor
 
-function getanchoredorigin(width::Integer, height::Integer, origin::Anchor)
-    halfwidth, halfheight = (width, height) ./ 2
-    
-    verts = Float32[
-        -halfwidth, -halfheight,
-         halfwidth, -halfheight,
-         halfwidth,  halfheight,
-        -halfwidth,  halfheight
-    ]
-    
-    if origin == TopAnchor
-        verts[2:2:8] .-= halfheight
-    elseif origin == LeftAnchor
-        verts[1:2:8] .+= halfwidth
-    elseif origin == RightAnchor
-        verts[1:2:8] .-= halfwidth
-    elseif origin == BottomAnchor
-        verts[2:2:8] .+= halfheight
-    elseif origin == TopLeftAnchor
-        verts[2:2:8] .-= halfheight
-        verts[1:2:8] .+= halfwidth
-    elseif origin == TopRightAnchor
-        verts[2:2:8] .-= halfheight
-        verts[1:2:8] .-= halfwidth
-    elseif origin == BottomLeftAnchor
-        verts[2:2:8] .+= halfheight
-        verts[1:2:8] .+= halfwidth
-    elseif origin == BottomRightAnchor
-        verts[2:2:8] .+= halfheight
-        verts[1:2:8] .-= halfwidth
+function VPECore.tick!(elem::AbstractUIElement, dt::AbstractFloat) end
+
+function getanchoredrectcoords(width::Integer, height::Integer, origin::Anchor)
+    FlixGL.getrectcoords(width, height, anchor2offset(origin))
+end
+function getanchoredpadoffset(anchor::Anchor, pad_top::Real, pad_left::Real, pad_right::Real, pad_bottom::Real)
+    xoffset = yoffset = 0
+    if anchor ∈ (TopLeftAnchor, TopAnchor, TopRightAnchor)
+        yoffset = -pad_top
+    elseif anchor ∈ (BottomLeftAnchor, BottomAnchor, BottomRightAnchor)
+        yoffset = pad_bottom
     end
-    
-    verts
+    if anchor ∈ (TopLeftAnchor, LeftAnchor, BottomLeftAnchor)
+        xoffset = pad_right
+    elseif anchor ∈ (TopRightAnchor, RightAnchor, BottomRightAnchor)
+        xoffset = -pad_left
+    end
+    return xoffset, yoffset
+end
+function anchor2offset(anchor::Anchor)
+    if anchor == TopLeftAnchor
+        (-1, 1)
+    elseif anchor == TopAnchor
+        (0, 1)
+    elseif anchor == TopRightAnchor
+        (1, 1)
+    elseif anchor == LeftAnchor
+        (-1, 0)
+    elseif anchor == CenterAnchor
+        (0, 0)
+    elseif anchor == RightAnchor
+        (1, 0)
+    elseif anchor == BottomLeftAnchor
+        (-1, -1)
+    elseif anchor == BottomAnchor
+        (0, -1)
+    elseif anchor == BottomRightAnchor
+        (1, -1)
+    else
+        error("Unknown anchor $anchor")
+    end
 end
 
+function vertices(elem::AbstractUIElement)
+    getanchoredrectcoords(size(elem)..., elem.origin)
+end
 
-function tick!(elem::AbstractUIElement, delta::Real) end
+# Borrowed from Bounds.jl
+function bounds(elem::AbstractUIElement)
+    halfwidth  = elem.width  / 2
+    halfheight = elem.height / 2
+    offx, offy = anchor2offset(elem.origin) .* (halfwidth, halfheight)
+    AABB(-halfwidth - offx, -halfheight - offy, halfwidth - offx, halfheight - offy)
+end
 
 function ispointover(elem::AbstractUIElement, point)
     tf    = FlixGL.transformof(elem)

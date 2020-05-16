@@ -2,7 +2,7 @@
 # Integration of the FreeType abstraction layer with the Entity system.
 # TODO: Anchor text to different locations
 
-export Label
+export Label, ContainerLabelFactory
 
 struct LabelVAO <: AbstractVertexArrayData
     internal::LowLevel.VertexArray
@@ -54,16 +54,17 @@ mutable struct Label <: AbstractUIElement
     halign::TextHorizontalAlignment
     valign::TextVerticalAlignment
     origin::Anchor
+    visible::Bool
     transform::Transform2D
     material::LabelMaterial
     
-    function Label(vao, font, text, width, height, lineheightmult, halign, valign, origin, transform, material)
-        inst = new(vao, font, text, width, height, lineheightmult, halign, valign, origin, transform, material)
+    function Label(vao, font, text, width, height, lineheightmult, halign, valign, origin, visible, transform, material)
+        inst = new(vao, font, text, width, height, lineheightmult, halign, valign, origin, visible, transform, material)
         transform.customdata = inst
         inst
     end
 end
-Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, transform, LabelMaterial())
+Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, false, transform, LabelMaterial())
 function Label(text::AbstractString, font::Font;
                width::Optional{<:Integer} = nothing,
                height::Optional{<:Integer} = nothing,
@@ -82,10 +83,12 @@ function Label(text::AbstractString, font::Font;
     lbl.halign         = halign
     lbl.valign         = valign
     lbl.origin         = origin
+    lbl.visible        = true
     lbl.material.color = color
     compile!(lbl)
 end
 
+FlixGL.wantsrender(lbl::Label) = lbl.visible
 FlixGL.countverts(::Label) = 4
 FlixGL.drawmodeof(::Label) = LowLevel.TriangleFanDrawMode
 
@@ -98,7 +101,7 @@ function compile!(lbl::Label)
     LowLevel.buffer_update(lbl.vao.vbo_uvs,    getlabeluvs(lbl, imgw, imgh))
     
     # Update texture
-    if lbl.material.tex != nothing
+    if lbl.material.tex !== nothing
         destroy(lbl.material.tex)
     end
     lbl.material.tex = wrapping!(texture(img), ClampToBorderWrap, ClampToBorderWrap, border=Black)
@@ -106,21 +109,21 @@ function compile!(lbl::Label)
 end
 
 function getlabelverts(lbl::Label)
-    if lbl.width != nothing && lbl.height != nothing
+    if lbl.width !== nothing && lbl.height !== nothing
         width  = lbl.width
         height = lbl.height
-    elseif lbl.width != nothing
+    elseif lbl.width !== nothing
         lines  = normlines(lbl.text)
         width  = lbl.width
         height = measure_textheight(lbl.font, length(lines); lineheightmult=lbl.lineheightmult)
-    elseif lbl.height != nothing
+    elseif lbl.height !== nothing
         lines  = normlines(lbl.text)
         width  = measure_textwidth(lbl.font, lines)
         height = lbl.height
     else
         width, height = measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)
     end
-    getanchoredorigin(width, height, lbl.origin)
+    getanchoredrectcoords(width, height, lbl.origin)
 end
 
 function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
@@ -131,7 +134,7 @@ function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
         0, 1
     ]
     
-    if lbl.width != nothing
+    if lbl.width !== nothing
         ratio = lbl.width / textwidth
         
         if lbl.halign == AlignLeft
@@ -144,7 +147,7 @@ function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
         end
     end
     
-    if lbl.height != nothing
+    if lbl.height !== nothing
         ratio = lbl.height / textheight
         
         if lbl.valign == AlignTop
@@ -161,6 +164,51 @@ function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
 end
 
 
+###########
+# Factories
+
+"""
+A factory to construct a Label for display within a certain-sized rectangular container element.
+"""
+struct ContainerLabelFactory
+    label::AbstractString
+    font::Font
+    pad_top::Integer
+    pad_left::Integer
+    pad_right::Integer
+    pad_bottom::Integer
+    color::Color
+    halign::TextHorizontalAlignment
+    valign::TextVerticalAlignment
+    
+    function ContainerLabelFactory(label, font; padding = nothing, pad_top = 0, pad_left = 0, pad_right = 0, pad_bottom = 0, color = White, halign = AlignCenter, valign = AlignMiddle)
+        if padding !== nothing
+            if length(padding) == 1
+                pad_top = pad_left = pad_right = pad_bottom = padding
+            elseif length(padding) == 2
+                pad_top, pad_left = pad_bottom, pad_right = padding
+            elseif length(padding) == 3
+                pad_top, pad_left, pad_right = padding
+                pad_bottom = pad_top
+            elseif length(padding) == 4
+                pad_top, pad_left, pad_right, pad_bottom = padding
+            end
+        end
+        new(label, font, pad_top, pad_left, pad_right, pad_bottom, color, halign, valign)
+    end
+end
+function (fct::ContainerLabelFactory)(width::Integer, height::Integer, origin::Anchor)
+    width  = width  - fct.pad_left - fct.pad_right
+    height = height - fct.pad_top  - fct.pad_bottom
+    lbl = Label(fct.label, fct.font, width=width, height=height, color=fct.color, halign=fct.halign, valign=fct.valign, origin=origin)
+    # println(origin)
+    # println(getanchoredpadoffset(origin, fct.pad_top, fct.pad_left, fct.pad_right, fct.pad_bottom))
+    translate!(lbl, getanchoredpadoffset(origin, fct.pad_top, fct.pad_left, fct.pad_right, fct.pad_bottom))
+    lbl
+end
+
+
+#########
 # Globals
 
 prog_label = nothing

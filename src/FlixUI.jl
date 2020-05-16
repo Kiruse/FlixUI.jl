@@ -1,12 +1,12 @@
 module FlixUI
 using GLFW
-using VPEWorlds
+using VPECore
 using FlixGL
 using FreeType
 using StaticArrays
 using BitFlags
 import FlixGL.LowLevel
-export destroy, compile, compile!, tick!
+export destroy, compile, compile!
 
 const dir_assets  = "$(@__DIR__)/../assets"
 const dir_shaders = "$dir_assets/shaders"
@@ -16,7 +16,6 @@ include("./Errors.jl")
 include("./EventDispatcher.jl")
 include("./Fonts.jl")
 include("./UIAbstracts.jl")
-include("./Bounds.jl")
 include("./UISystems.jl")
 include("./UIElements.jl")
 
