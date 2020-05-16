@@ -61,7 +61,7 @@ function setfontsize!(font::Font, size::Integer)
     
     # Get DPI. If Window is not in fullscreen, assume DPI of primary monitor.
     monitor = getmonitor(activewindow())
-    if monitor == nothing monitor = Monitor(1) end
+    if monitor === nothing monitor = Monitor(1) end
     dpih, dpiv = getdpi(monitor)
     
     err = FT_Set_Char_Size(font.handle, 0, size << 6, dpih, dpiv)
@@ -113,6 +113,7 @@ function measure_linewidth(font::Font, text)
 end
 
 function findcolortype(font::Font, text::AbstractString)
+    if isempty(text) return NormColor end
     reduce(promote_type, (getcolortype(getglyph(font, char)) for char ∈ text))
 end
 
@@ -134,9 +135,11 @@ function getcolortype(ftpixelmode::UInt8)
 end
 
 function compile(font::Font, text::AbstractString; linewidth::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, align::TextHorizontalAlignment = AlignLeft)
+    if isempty(text) return Image2D(NormColor[Black Black; Black Black]) end
+    
     lines = normlines(text)
     
-    if linewidth == nothing
+    if linewidth === nothing
         width, height = measure(font, text, lineheightmult=lineheightmult)
     else
         width  = linewidth
@@ -179,11 +182,14 @@ function getpenxstart(font::Font, line, maxwidth::Integer, align::TextHorizontal
 end
 
 function pasteglyph!(pxs::Array{<:AbstractColor, 2}, glyph::FontGlyph, pen)
-    cols, rows = size(glyph)
+    irows, icols = size(pxs)
+    gcols, grows = size(glyph)
     xstart, yend = pen + glyph.bearing
-    xend   = xstart + cols
-    ystart = yend - rows
-    pxs[ystart:yend-1, xstart:xend-1] .= pixels(glyph.img)
+    xend   = xstart + gcols
+    ystart = yend - grows
+    if ystart > 0 && xstart > 0 && yend <= irows && xend <= icols
+        pxs[ystart:yend-1, xstart:xend-1] .= pixels(glyph.img)
+    end
     pxs
 end
 
