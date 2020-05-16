@@ -1,25 +1,32 @@
 export Button
 
-struct Button <: AbstractUIElement
+mutable struct Button <: AbstractUIElement
     width::Integer
     height::Integer
     origin::Anchor
+    label::Optional{Label}
+    background::Image
+    visible::Bool
     transform::Transform2D
     listeners::ListenersType
     
-    function Button(width, height, origin, transform, listeners)
-        inst = new(width, height, origin, transform, listeners)
+    function Button(width, height, origin, label, background, visible, transform, listeners)
+        inst = new(width, height, origin, label, background, visible, transform, listeners)
         transform.customdata = inst
         inst
     end
 end
 function Button(width::Integer, height::Integer, img::BackgroundImageFactory, label::ContainerLabelFactory; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
-    btn = Button(width, height, img, transform=transform, origin=origin)
-    parent!(label(width, height, origin)::Label, btn)
+    lbl = label(width, height, origin)::Label
+    bg  = img(  width, height, origin)::Image
+    btn = Button(width, height, origin, lbl, bg, true, transform, ListenersType())
+    parent!(bg,  btn)
+    parent!(lbl, btn)
     btn
 end
 function Button(width::Integer, height::Integer, img::BackgroundImageFactory; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
-    btn = Button(width, height, origin, transform, ListenersType())
+    bg  = img(width, height, origin)::Image
+    btn = Button(width, height, origin, nothing, bg, visible, transform, ListenersType())
     parent!(img(width, height, origin)::Image, btn)
     btn
 end
@@ -28,6 +35,12 @@ Button(img::BackgroundImageFactory; transform::Transform2D = Transform2D{Float64
 
 VPECore.eventlisteners(btn::Button) = btn.listeners
 uiinputconfig(::Button) = WantsMouseInput
+
+function FlixGL.setvisibility(btn::Button, visible::Bool)
+    btn.visible = visible
+    setvisibility(btn.label, visible)
+    setvisibility(btn.background, visible)
+end
 
 
 ##############

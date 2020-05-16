@@ -5,16 +5,18 @@
 
 export Textfield
 
-struct Textfield <: AbstractUIElement
+mutable struct Textfield <: AbstractUIElement
     width::Integer
     height::Integer
-    label::Label
     origin::Anchor
+    label::Label
+    background::Optional{Image}
+    visible::Bool
     transform::Transform2D
     listeners::ListenersType
     
-    function Textfield(width, height, label, origin, transform, listeners)
-        inst = new(width, height, label, origin, transform, listeners)
+    function Textfield(width, height, origin, label, background, visible, transform, listeners)
+        inst = new(width, height, origin, label, background, visible, transform, listeners)
         transform.customdata = inst
         hook!(curry(textfield_receivechar, inst), inst, :CharReceived)
         hook!(curry(textfield_keypress,    inst), inst, :KeyPress)
@@ -28,8 +30,8 @@ function Textfield(width::Integer,
                    origin::Anchor = CenterAnchor,
                    transform::Transform2D = Transform2D{Float64}()
                   )
-    lbl = labelfactory(width, height, origin)::Label
-    inst = Textfield(width, height, lbl, origin, transform, ListenersType())
+    lbl  = labelfactory(width, height, origin)::Label
+    inst = Textfield(width, height, origin, lbl, nothing, true, transform, ListenersType())
     parent!(lbl, inst)
     inst
 end
@@ -39,15 +41,22 @@ function Textfield(backgroundfactory::BackgroundImageFactory,
                    transform::Transform2D = Transform2D{Float64}()
                   )
     width, height = size(backgroundfactory.image)
-    lbl = labelfactory(width, height, origin)
-    inst = Textfield(width, height, lbl, origin, transform, ListenersType())
-    parent!(backgroundfactory(width, height, origin), inst)
+    lbl  = labelfactory(width, height, origin)
+    bg   = backgroundfactory(width, height, origin)
+    inst = Textfield(width, height, origin, lbl, bg, true, transform, ListenersType())
+    parent!(bg,  inst)
     parent!(lbl, inst)
     inst
 end
-    
+
 VPECore.eventlisteners(text::Textfield) = text.listeners
 uiinputconfig(::Textfield) = WantsMouseInput + WantsKeyboardInput + WantsTextInput
+
+function FlixGL.setvisibility(txt::Textfield, visible::Bool)
+    txt.visible = visible
+    setvisibility(txt.background, visible)
+    setvisibility(txt.label, visible)
+end
 
 function textfield_receivechar(textfield::Textfield, char::Char)
     textfield.label.text *= char

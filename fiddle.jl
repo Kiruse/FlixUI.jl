@@ -44,7 +44,15 @@ end
 
 cam = Camera2D()
 
+counter = 0
 frameloop() do dt
+    global counter
+    counter += dt
+    if counter >= 5
+        setvisibility(btn1, !isvisible(btn1))
+        counter = 0
+    end
+    
     tick!(world, dt)
     
     render_background(ForwardRenderPipeline)
