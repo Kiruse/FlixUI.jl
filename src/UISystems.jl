@@ -47,7 +47,7 @@ mutable struct UISystem
     window::Window
     elements::Vector{AbstractUIElement}
     hoveredelements::Set{AbstractUIElement}
-    listeners::Dict{Symbol, Vector}
+    listeners::ListenersType
     ismouseover::Bool
     scroll::Vector2{Float64}
     
@@ -62,7 +62,9 @@ mutable struct UISystem
         inst
     end
 end
-UISystem(wnd::Window) = UISystem(wnd, Vector(), Set(), Dict(), false, Vector2{Float64}(0, 0))
+UISystem(wnd::Window) = UISystem(wnd, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
+
+VPECore.eventlisteners(sys::UISystem) = sys.listeners
 
 
 module UISystemGLFWEvents

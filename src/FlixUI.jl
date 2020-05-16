@@ -13,7 +13,6 @@ const dir_shaders = "$dir_assets/shaders"
 const Optional{T} = Union{Nothing, T}
 
 include("./Errors.jl")
-include("./EventDispatcher.jl")
 include("./Fonts.jl")
 include("./UIAbstracts.jl")
 include("./UISystems.jl")

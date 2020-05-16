@@ -13,9 +13,7 @@ struct Button <: AbstractUIElement
         inst
     end
 end
-FlixGL.entityclass(::Type{Button}) = UIEntity()
-eventdispatcherness(::Type{Button}) = IsEventDispatcher()
-eventlisteners(btn::Button) = btn.listeners
+VPECore.eventlisteners(btn::Button) = btn.listeners
 
 function Button(width::Integer, height::Integer, img::BackgroundImageFactory, label::ContainerLabelFactory; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
     btn = Button(width, height, img, transform=transform, origin=origin)
