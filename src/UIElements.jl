@@ -68,8 +68,8 @@ end
 
 uiinputconfig(::AbstractUIElement) = WantsNoInput
 
-# Borrowed from Bounds.jl
-function bounds(elem::AbstractUIElement)
+# Borrowed from VPECore
+function VPECore.bounds(elem::AbstractUIElement)
     halfwidth  = elem.width  / 2
     halfheight = elem.height / 2
     offx, offy = anchor2offset(elem.origin) .* (halfwidth, halfheight)
