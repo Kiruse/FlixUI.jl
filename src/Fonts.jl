@@ -4,7 +4,7 @@
 # TODO: Support for vertical fonts (e.g. Japanese as found in print media).
 
 export Font, FontCache, FontGlyph
-export font, setfontsize!, getfontsize, setlineheight!, getlineheight, measure, getglyph
+export font, setfontsize!, getfontsize, setlineheight!, getlineheight, measure, measure_textheight, measure_textwidth, getglyph
 export preloadchars, preload_roman_chars, preload_punctuation, preload_arabic_numbers
 export clearcache!, uncache!
 export TextHorizontalAlignment, AlignLeft, AlignCenter, AlignRight
