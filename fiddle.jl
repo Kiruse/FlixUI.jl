@@ -19,10 +19,9 @@ push!(world, uisys)
 
 cam = Camera2D()
 
-txtimg  = load_image(PNGImageFormat, "./assets/textures/TextfieldBackground.png")
-txtsize = size(txtimg)
+txtsize = (200, 60)
 lblargs = ContainerLabelArguments(fnt, text="", color=Black, padding=3)
-txt = Textfield(txtsize..., txtimg, lblargs)
+txt = Textfield(txtsize..., BackgroundColorArguments(0.9White3), lblargs)
 push!(world, txt)
 register!(uisys, txt)
 
@@ -32,11 +31,7 @@ hook!(txt, :MousePress) do btn
     end
 end
 
-ttotal = 0.0
-frameloop() do dt
-    global ttotal
-    ttotal += dt
-    
+frameloop() do dt, ttotal
     resize!(txt, (txtsize .+ txtsize .* 0.5sin(ttotal))...)
     
     tick!(world, dt)

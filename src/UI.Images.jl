@@ -1,4 +1,8 @@
-export Image, BackgroundImageFactory
+export Image
+export AbstractBackgroundMimic, AbstractBackgroundArguments
+export BackgroundImageMimic, BackgroundImageArguments
+export BackgroundColorMimic, BackgroundColorArguments
+export containerbackground
 
 mutable struct Image <: AbstractUIElement
     width::Float64
@@ -55,33 +59,60 @@ end
 ########
 # Mimics
 
-mutable struct BackgroundImageMimic <: AbstractUIMimic{Image}
+abstract type AbstractBackgroundMimic <: AbstractUIMimic{Image} end
+abstract type AbstractBackgroundArguments end
+
+mutable struct BackgroundImageArguments <: AbstractBackgroundArguments
+    image::Image2D
+end
+mutable struct BackgroundColorArguments <: AbstractBackgroundArguments
+    color::AbstractColor
+end
+
+mutable struct BackgroundImageMimic <: AbstractBackgroundMimic
     mimicked::Image
     
     function BackgroundImageMimic(parent::AbstractUIElement, image::Image2D)
         inst = new(Image(size(parent)..., image))
         transformof(inst).customdata = inst
         parent!(inst, parent)
-        update_transform!(inst)
+        update_bgimg_transform!(inst)
         inst
     end
 end
+BackgroundImageMimic(parent::AbstractUIElement, args::BackgroundImageArguments) = BackgroundImageMimic(parent, args.image)
 
-FlixGL.parent!(::BackgroundImageMimic, ::AbstractEntity) = error("Cannot parent a BackgroundImageMimic to a non-UI entity")
-FlixGL.parent!(bgimg::BackgroundImageMimic, parent::AbstractUIElement) = parent!(transformof(bgimg), transformof(parent))
-FlixGL.deparent!(::BackgroundImageMimic) = error("Cannot deparent a BackgroundImageMimic")
-VPECore.eventlisteners(mimic::BackgroundImageMimic) = mimic.mimicked.listeners
+mutable struct BackgroundColorMimic <: AbstractBackgroundMimic
+    mimicked::Image
+    
+    function BackgroundColorMimic(parent::AbstractUIElement, color::AbstractColor)
+        color = convert(NormColor, color)
+        img   = Image2D(fill(color, 2, 2))
+        width, height = size(parent)
+        inst = new(Image(width, height, img))
+        transformof(inst).customdata = inst
+        parent!(inst, parent)
+        update_bgimg_transform!(inst)
+        inst
+    end
+end
+BackgroundColorMimic(parent::AbstractUIElement, args::BackgroundColorArguments) = BackgroundColorMimic(parent, args.color)
+
+FlixGL.parent!(::AbstractBackgroundMimic, ::AbstractEntity) = error("Cannot parent a background image mimic to a non-UI entity")
+FlixGL.parent!(bgimg::AbstractBackgroundMimic, parent::AbstractUIElement) = parent!(transformof(bgimg), transformof(parent))
+FlixGL.deparent!(::AbstractBackgroundMimic) = error("Cannot deparent a background image mimic")
+VPECore.eventlisteners(mimic::AbstractBackgroundMimic) = mimic.mimicked.listeners
 
 # Simplified RelativeMimic which always spans the full size of and centers the image within the parent.
-function onparentresized!(mimic::BackgroundImageMimic)
+function onparentresized!(mimic::AbstractBackgroundMimic)
     img = mimicked(mimic)
     width, height = size(parentof(mimic))
     resize!(img, width, height)
-    update_transform!(mimic)
+    update_bgimg_transform!(mimic)
     foreach(onparentresized!, childrenof(mimic))
 end
 
-function update_transform!(mimic::BackgroundImageMimic)
+function update_bgimg_transform!(mimic::AbstractBackgroundMimic)
     aabb = bounds(parentof(mimic))
     transformof(mimic).location = Vector2(aabb.max[1] + aabb.min[1], aabb.max[2] + aabb.min[2]) ./ 2
     mimic
@@ -89,12 +120,14 @@ end
 
 backgroundimage_centerlocation(parent::AbstractUIElement) = (aabb = bounds(parent); Vector2(aabb.max[1] - aabb.min[1], aabb.max[2] - aabb.min[2]))
 
+containerbackground(parent::AbstractUIElement, args::BackgroundImageArguments) = BackgroundImageMimic(parent, args)
+containerbackground(parent::AbstractUIElement, args::BackgroundColorArguments) = BackgroundColorMimic(parent, args)
+
 
 ##############
 # Base methods
 
 Base.show(io::IO, img::Image) = write(io, "Image($(img.width)×$(img.height), $(img.origin), $(length(img.listeners)) listeners)")
-Base.size(mimic::BackgroundImageMimic) = size(mimic.mimicked)
 
 #########
 # Globals

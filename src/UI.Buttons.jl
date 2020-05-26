@@ -5,7 +5,7 @@ mutable struct Button <: AbstractUIElement
     height::Float64
     origin::Anchor
     label::Optional{ContainerLabelMimic}
-    background::Optional{BackgroundImageMimic}
+    background::Optional{AbstractBackgroundMimic}
     visible::Bool
     transform::Transform2D
     listeners::ListenersType
@@ -16,15 +16,15 @@ mutable struct Button <: AbstractUIElement
         inst
     end
 end
-function Button(width::Real, height::Real, img::Image2D, labelargs::ContainerLabelArguments; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
+function Button(width::Real, height::Real, imgargs::AbstractBackgroundArguments, labelargs::ContainerLabelArguments; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
     btn = Button(width, height, origin, nothing, nothing, true, transform, ListenersType())
-    btn.background = BackgroundImageMimic(btn, img)
+    btn.background = containerbackground(btn, imgargs)
     btn.label = ContainerLabelMimic(btn, labelargs)
     btn
 end
-function Button(width::Real, height::Real, img::Image2D; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
+function Button(width::Real, height::Real, imgargs::AbstractBackgroundArguments; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
     btn = Button(width, height, origin, nothing, nothing, visible, transform, ListenersType())
-    btn.background = BackgroundImageMimic(btn, img)
+    btn.background = containerbackground(btn, imgargs)
     btn
 end
 Button(img::Image2D, label::ContainerLabelArguments; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img.image)..., img, label, transform=transform, origin=origin)

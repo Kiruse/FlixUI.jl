@@ -10,7 +10,7 @@ mutable struct Textfield <: AbstractUIElement
     height::Float64
     origin::Anchor
     label::Optional{ContainerLabelMimic}
-    background::Optional{BackgroundImageMimic}
+    background::Optional{AbstractBackgroundMimic}
     visible::Bool
     transform::Transform2D
     listeners::ListenersType
@@ -36,13 +36,13 @@ function Textfield(width::Real,
 end
 function Textfield(width::Real,
                    height::Real,
-                   bgimage::Image2D,
+                   bgargs::AbstractBackgroundArguments,
                    labelargs::ContainerLabelArguments,
                    origin::Anchor = CenterAnchor,
                    transform::Transform2D = Transform2D{Float64}()
                   )
     inst = Textfield(width, height, origin, nothing, nothing, true, transform, ListenersType())
-    inst.background = BackgroundImageMimic(inst, bgimage)
+    inst.background = containerbackground(inst, bgargs)
     inst.label = ContainerLabelMimic(inst, labelargs)
     inst
 end
@@ -51,7 +51,7 @@ function Textfield(bgimage::Image2D,
                    origin::Anchor = CenterAnchor,
                    transform::Transform2D = Transform2D{Float64}()
                   )
-    Textfield(size(bgimage)..., bgimage, labelargs, origin, anchor, transform)
+    Textfield(size(bgimage)..., BackgroundImageArguments(bgimage), labelargs, origin, anchor, transform)
 end
 
 VPECore.eventlisteners(text::Textfield) = text.listeners
