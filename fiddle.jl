@@ -4,59 +4,45 @@ using VPECore
 using FlixGL
 using FlixUI
 
+const get2Drenderables = curry(getrenderables, AbstractEntity2D)
+
 wnd = Window(title="FlixUI Fiddle", width=800, height=600, fullscreen=Windowed)
 use(wnd)
 initwindow()
 uisys = UISystem(wnd)
 setinputmode!(uisys, UIInputMode)
 
+fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
+
 world = World{Transform2D{Float64}}()
 push!(world, uisys)
 
-fnt  = font("./assets/fonts/NotoSans/NotoSans-Regular.ttf"; size=16)
-btn1 = Button(BackgroundImageFactory(load_image(PNGImageFormat, "./assets/textures/ButtonSample1.png")),
-              ContainerLabelFactory("Some Button", fnt, padding=3),
-              origin=TopLeftAnchor)
-translate!(btn1, (50, 50))
-rotate!(btn1, deg2rad(45))
-register!(uisys, btn1)
-push!(world, btn1)
-
-txt1 = Textfield(BackgroundImageFactory(load_image(PNGImageFormat, "./assets/textures/TextfieldBackground.png")),
-                 ContainerLabelFactory("", fnt, padding=4, color=Black, halign=AlignLeft),
-                 origin=RightAnchor)
-register!(uisys, txt1)
-push!(world, txt1)
-
-hook!(txt1, :MousePress) do btn
-    if btn ∈ (LeftMouseButton, RightMouseButton)
-        focuselement!(uisys, txt1)
-    end
-end
-hook!(txt1, :CharReceived) do char
-    println(txt1.label.text)
-end
-hook!(txt1, :KeyPress) do scancode
-    if scancode == 14
-        println(txt1.label.text)
-    end
-end
-
 cam = Camera2D()
 
-counter = 0
-frameloop() do dt
-    global counter
-    counter += dt
-    if counter >= 5
-        setvisibility(btn1, !isvisible(btn1))
-        counter = 0
+txtimg  = load_image(PNGImageFormat, "./assets/textures/TextfieldBackground.png")
+txtsize = size(txtimg)
+lblargs = ContainerLabelArguments(fnt, text="", color=Black, padding=3)
+txt = Textfield(txtsize..., txtimg, lblargs)
+push!(world, txt)
+register!(uisys, txt)
+
+hook!(txt, :MousePress) do btn
+    if btn == LeftMouseButton
+        focuselement!(uisys, txt)
     end
+end
+
+ttotal = 0.0
+frameloop() do dt
+    global ttotal
+    ttotal += dt
+    
+    resize!(txt, (txtsize .+ txtsize .* 0.5sin(ttotal))...)
     
     tick!(world, dt)
     
     render_background(ForwardRenderPipeline)
-    render(ForwardRenderPipeline, WorldRenderSpace, cam, getrenderables(AbstractEntity2D, world, UIEntity))
+    render(ForwardRenderPipeline, WorldRenderSpace, cam, get2Drenderables(world, UIEntity))
     flip()
     
     return !wantsclose()

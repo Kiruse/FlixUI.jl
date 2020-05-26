@@ -6,11 +6,11 @@
 export Textfield
 
 mutable struct Textfield <: AbstractUIElement
-    width::Integer
-    height::Integer
+    width::Float64
+    height::Float64
     origin::Anchor
-    label::Label
-    background::Optional{Image}
+    label::Optional{ContainerLabelMimic}
+    background::Optional{BackgroundImageMimic}
     visible::Bool
     transform::Transform2D
     listeners::ListenersType
@@ -24,48 +24,53 @@ mutable struct Textfield <: AbstractUIElement
         inst
     end
 end
-function Textfield(width::Integer,
-                   height::Integer,
-                   labelfactory::ContainerLabelFactory;
+function Textfield(width::Real,
+                   height::Real,
+                   labelargs::ContainerLabelArguments;
                    origin::Anchor = CenterAnchor,
                    transform::Transform2D = Transform2D{Float64}()
                   )
-    lbl  = labelfactory(width, height, origin)::Label
-    inst = Textfield(width, height, origin, lbl, nothing, true, transform, ListenersType())
-    parent!(lbl, inst)
+    inst = Textfield(width, height, origin, nothing, nothing, true, transform, ListenersType())
+    inst.label = ContainerLabelMimic(inst, labelargs)
     inst
 end
-function Textfield(backgroundfactory::BackgroundImageFactory,
-                   labelfactory::ContainerLabelFactory;
+function Textfield(width::Real,
+                   height::Real,
+                   bgimage::Image2D,
+                   labelargs::ContainerLabelArguments,
                    origin::Anchor = CenterAnchor,
                    transform::Transform2D = Transform2D{Float64}()
                   )
-    width, height = size(backgroundfactory.image)
-    lbl  = labelfactory(width, height, origin)
-    bg   = backgroundfactory(width, height, origin)
-    inst = Textfield(width, height, origin, lbl, bg, true, transform, ListenersType())
-    parent!(bg,  inst)
-    parent!(lbl, inst)
+    inst = Textfield(width, height, origin, nothing, nothing, true, transform, ListenersType())
+    inst.background = BackgroundImageMimic(inst, bgimage)
+    inst.label = ContainerLabelMimic(inst, labelargs)
     inst
+end
+function Textfield(bgimage::Image2D,
+                   labelargs::ContainerLabelArguments,
+                   origin::Anchor = CenterAnchor,
+                   transform::Transform2D = Transform2D{Float64}()
+                  )
+    Textfield(size(bgimage)..., bgimage, labelargs, origin, anchor, transform)
 end
 
 VPECore.eventlisteners(text::Textfield) = text.listeners
 uiinputconfig(::Textfield) = WantsMouseInput + WantsKeyboardInput + WantsTextInput
 
-function FlixGL.setvisibility(txt::Textfield, visible::Bool)
+function FlixGL.setvisibility!(txt::Textfield, visible::Bool)
     txt.visible = visible
-    setvisibility(txt.background, visible)
-    setvisibility(txt.label, visible)
+    setvisibility!(txt.background, visible)
+    setvisibility!(txt.label, visible)
 end
 
 function textfield_receivechar(textfield::Textfield, char::Char)
     textfield.label.text *= char
-    compile!(textfield.label)
+    update!(mimicked(textfield.label))
 end
 function textfield_keypress(textfield::Textfield, scancode::Integer)
     if scancode == 14
         textfield.label.text = textfield.label.text[1:length(textfield.label.text)-1]
-        compile!(textfield.label)
+        update!(mimicked(textfield.label))
     end
 end
 
@@ -74,3 +79,9 @@ end
 # Base methods
 
 Base.show(io::IO, txt::Textfield) = (write(io, "Textfield($(txt.width)×$(txt.height), $(txt.origin), "); show(io, txt.label); write(io, ")"))
+function Base.resize!(txt::Textfield, width::Real, height::Real)
+    txt.width  = width
+    txt.height = height
+    foreach(onparentresized!, childrenof(txt))
+    txt
+end

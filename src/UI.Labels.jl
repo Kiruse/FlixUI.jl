@@ -2,7 +2,7 @@
 # Integration of the FreeType abstraction layer with the Entity system.
 # TODO: Anchor text to different locations
 
-export Label, ContainerLabelFactory
+export Label, ContainerLabelMimic, ContainerLabelArguments
 
 struct LabelVAO <: AbstractVertexArrayData
     internal::LowLevel.VertexArray
@@ -32,7 +32,7 @@ LabelMaterial() = LabelMaterial(nothing, White)
 
 function FlixGL.programof(::Type{LabelMaterial})
     global prog_label
-    if prog_label == nothing
+    if prog_label === nothing
         prog_label = LowLevel.program(LowLevel.shader(LowLevel.VertexShader, "$dir_shaders/label-bw.vertex.glsl"), LowLevel.shader(LowLevel.FragmentShader, "$dir_shaders/label-bw.fragment.glsl"))
     end
     prog_label
@@ -48,9 +48,10 @@ mutable struct Label <: AbstractUIElement
     vao::LabelVAO
     font::Font
     text::AbstractString
-    width::Optional{<:Integer}
-    height::Optional{<:Integer}
-    lineheightmult::Real
+    realsize::Vector2{Float64}
+    imgsize::Vector2{Int64}
+    wantsize::Vector2{Union{Float64, AutoSize}}
+    lineheightmult::Float64
     halign::TextHorizontalAlignment
     valign::TextVerticalAlignment
     origin::Anchor
@@ -58,16 +59,16 @@ mutable struct Label <: AbstractUIElement
     transform::Transform2D
     material::LabelMaterial
     
-    function Label(vao, font, text, width, height, lineheightmult, halign, valign, origin, visible, transform, material)
-        inst = new(vao, font, text, width, height, lineheightmult, halign, valign, origin, visible, transform, material)
+    function Label(vao, font, text, realsize, imgsize, wantsize, lineheightmult, halign, valign, origin, visible, transform, material)
+        inst = new(vao, font, text, realsize, imgsize, wantsize, lineheightmult, halign, valign, origin, visible, transform, material)
         transform.customdata = inst
         inst
     end
 end
-Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", nothing, nothing, 0, AlignLeft, AlignTop, CenterAnchor, false, transform, LabelMaterial())
+Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", Vector2(0, 0), Vector2(0, 0), Vector2(autosize, autosize), 0, AlignLeft, AlignTop, CenterAnchor, false, transform, LabelMaterial())
 function Label(text::AbstractString, font::Font;
-               width::Optional{<:Integer} = nothing,
-               height::Optional{<:Integer} = nothing,
+               width::Union{<:Real, AutoSize} = autosize,
+               height::Union{<:Real, AutoSize} = autosize,
                lineheightmult::Real = 1.0,
                color::Color = White,
                halign::TextHorizontalAlignment = AlignLeft,
@@ -77,28 +78,36 @@ function Label(text::AbstractString, font::Font;
               )
     lbl = Label(font, transform)
     lbl.text           = text
-    lbl.width          = width
-    lbl.height         = height
+    lbl.realsize       = Vector2(0, 0)
+    lbl.imgsize        = Vector2(0, 0)
+    lbl.wantsize       = Vector2(width, height)
     lbl.lineheightmult = lineheightmult
     lbl.halign         = halign
     lbl.valign         = valign
     lbl.origin         = origin
     lbl.visible        = true
     lbl.material.color = color
-    compile!(lbl)
+    update!(lbl)
 end
 
 FlixGL.wantsrender(lbl::Label) = lbl.visible
 FlixGL.countverts(::Label) = 4
 FlixGL.drawmodeof(::Label) = LowLevel.TriangleFanDrawMode
 
-function compile!(lbl::Label)
-    img = compile(lbl.font, lbl.text, linewidth=lbl.width, lineheightmult=lbl.lineheightmult, align=lbl.halign)
-    imgw, imgh = size(img)
+function update!(lbl::Label)
+    update_texture!(lbl)
+    update_verts!(lbl)
+    update_uvs!(lbl)
+end
+
+function update_texture!(lbl::Label)
+    img = compile(lbl.font, lbl.text, linewidth=floor(Int64, lbl.wantsize[1]), lineheightmult=lbl.lineheightmult, align=lbl.halign)
+    imgw, imgh  = size(img)
+    lbl.imgsize = Vector2(imgw, imgh)
     
-    # Update vertex coordinates
-    LowLevel.buffer_update(lbl.vao.vbo_coords, getlabelverts(lbl))
-    LowLevel.buffer_update(lbl.vao.vbo_uvs,    getlabeluvs(lbl, imgw, imgh))
+    realwidth  = lbl.wantsize[1] == autosize ? imgw : lbl.wantsize[1]
+    realheight = lbl.wantsize[2] == autosize ? imgh : lbl.wantsize[2]
+    lbl.realsize = Vector2(realwidth, realheight)
     
     # Update texture
     if lbl.material.tex !== nothing
@@ -108,20 +117,28 @@ function compile!(lbl::Label)
     lbl
 end
 
+function update_verts!(lbl::Label)
+    LowLevel.buffer_update(lbl.vao.vbo_coords, getlabelverts(lbl))
+    lbl
+end
+
+function update_uvs!(lbl::Label)
+    imgw, imgh = lbl.imgsize
+    LowLevel.buffer_update(lbl.vao.vbo_uvs, getlabeluvs(lbl, imgw, imgh))
+    lbl
+end
+
 function getlabelverts(lbl::Label)
-    if lbl.width !== nothing && lbl.height !== nothing
-        width  = lbl.width
-        height = lbl.height
-    elseif lbl.width !== nothing
+    width, height = lbl.wantsize
+    
+    if width == autosize && height == autosize
+        width, height = measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)
+    elseif width == autosize
         lines  = normlines(lbl.text)
-        width  = lbl.width
         height = measure_textheight(lbl.font, length(lines); lineheightmult=lbl.lineheightmult)
-    elseif lbl.height !== nothing
+    elseif height == autosize
         lines  = normlines(lbl.text)
         width  = measure_textwidth(lbl.font, lines)
-        height = lbl.height
-    else
-        width, height = measure(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult)
     end
     getanchoredrectcoords(width, height, lbl.origin)
 end
@@ -134,8 +151,8 @@ function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
         0, 1
     ]
     
-    if lbl.width !== nothing
-        ratio = lbl.width / textwidth
+    if lbl.wantsize[1] !== autosize
+        ratio = lbl.wantsize[1] / textwidth
         
         if lbl.halign == AlignLeft
             uvs[3] = uvs[5] = ratio
@@ -147,8 +164,8 @@ function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
         end
     end
     
-    if lbl.height !== nothing
-        ratio = lbl.height / textheight
+    if lbl.wantsize[2] !== autosize
+        ratio = lbl.wantsize[2] / textheight
         
         if lbl.valign == AlignTop
             uvs[2] = uvs[4] = 1-ratio
@@ -164,67 +181,143 @@ function getlabeluvs(lbl::Label, textwidth::Real, textheight::Real)
 end
 
 
-###########
-# Factories
+@generate_properties Label begin
+    @get color = self.material.color
+    @set color = self.material.color = value
+end
 
-"""
-A factory to construct a Label for display within a certain-sized rectangular container element.
-"""
-struct ContainerLabelFactory
-    label::AbstractString
+
+########
+# Mimics
+
+mutable struct ContainerLabelArguments
+    text::AbstractString
     font::Font
-    pad_top::Integer
-    pad_left::Integer
-    pad_right::Integer
-    pad_bottom::Integer
+    padding::NTuple{4, Int64}
     color::Color
+    lineheightmult::Float64
     halign::TextHorizontalAlignment
     valign::TextVerticalAlignment
     
-    function ContainerLabelFactory(label, font; padding = nothing, pad_top = 0, pad_left = 0, pad_right = 0, pad_bottom = 0, color = White, halign = AlignCenter, valign = AlignMiddle)
-        if padding !== nothing
-            if length(padding) == 1
-                pad_top = pad_left = pad_right = pad_bottom = padding
-            elseif length(padding) == 2
-                pad_top, pad_left = pad_bottom, pad_right = padding
-            elseif length(padding) == 3
-                pad_top, pad_left, pad_right = padding
-                pad_bottom = pad_top
-            elseif length(padding) == 4
-                pad_top, pad_left, pad_right, pad_bottom = padding
-            end
-        end
-        new(label, font, pad_top, pad_left, pad_right, pad_bottom, color, halign, valign)
+    function ContainerLabelArguments(label::AbstractString, font::Font, padding, color::Color, lineheightmult::Real, halign::TextHorizontalAlignment, valign::TextVerticalAlignment)
+        new(label, font, normalize_padding(padding), color, lineheightmult, halign, valign)
     end
 end
-function (fct::ContainerLabelFactory)(width::Integer, height::Integer, origin::Anchor)
-    width  = width  - fct.pad_left - fct.pad_right
-    height = height - fct.pad_top  - fct.pad_bottom
-    lbl = Label(fct.label, fct.font, width=width, height=height, color=fct.color, halign=fct.halign, valign=fct.valign, origin=origin)
-    # println(origin)
-    # println(getanchoredpadoffset(origin, fct.pad_top, fct.pad_left, fct.pad_right, fct.pad_bottom))
-    translate!(lbl, getanchoredpadoffset(origin, fct.pad_top, fct.pad_left, fct.pad_right, fct.pad_bottom))
-    lbl
+function ContainerLabelArguments(font::Font;
+                                 text::AbstractString = "",
+                                 padding = 0,
+                                 color::Color = White,
+                                 lineheightmult::Real = 1,
+                                 halign::TextHorizontalAlignment = AlignCenter,
+                                 valign::TextVerticalAlignment = AlignMiddle,
+                                )
+    ContainerLabelArguments(text, font, padding, color, lineheightmult, halign, valign)
+end
+
+@generate_properties ContainerLabelArguments begin
+    @set padding = normalize_padding(value)
+end
+
+
+"""A mimic labelling a container with various settings concerning its relative size."""
+mutable struct ContainerLabelMimic <: AbstractUIMimic{Label}
+    mimicked::Label
+    padding::NTuple{4, Int64}
+    
+    function ContainerLabelMimic(parent::AbstractUIElement, args::ContainerLabelArguments)
+        width, height = compute_size(parent, args.padding)
+        lbl = Label(args.font)
+        lbl.text = args.text
+        lbl.wantsize = Vector2{Union{Float64, AutoSize}}(width == autosize ? autosize : Float64(width), height == autosize ? autosize : Float64(height))
+        lbl.lineheightmult = args.lineheightmult
+        lbl.material.color = args.color
+        lbl.lineheightmult = args.lineheightmult
+        lbl.halign = args.halign
+        lbl.valign = args.valign
+        lbl.visible = true
+        
+        inst = new(lbl, normalize_padding(args.padding))
+        parent!(inst, parent)
+        update_transform!(inst)
+        transformof(inst).customdata = inst
+        update!(lbl)
+        inst
+    end
+end
+
+FlixGL.parent!(::ContainerLabelMimic, ::AbstractEntity) = error("Cannot parent a ContainerLabelMimic to a non-UI entity")
+FlixGL.parent!(mimic::ContainerLabelMimic, parent::AbstractUIComponent) = parent!(transformof(mimic), transformof(parent))
+FlixGL.deparent!(::ContainerLabelMimic) = error("Cannot deparent a ContainerLabelMimic")
+
+
+function onparentresized!(mimic::ContainerLabelMimic)
+    update_size!(mimic)
+    foreach(onparentresized!, childrenof(mimic))
+end
+
+function update_size!(mimic::ContainerLabelMimic)
+    lbl = mimic.mimicked
+    width, height = compute_size(parentof(lbl), mimic.padding)
+    lbl.wantsize  = Vector2{Union{Float64, AutoSize}}(width, height)
+    update!(lbl)
+    update_transform!(mimic)
+    mimic
+end
+
+function update_transform!(mimic::ContainerLabelMimic)
+    aabb = bounds(parentof(mimic))
+    offsetx = (aabb.max[1] + aabb.min[1]) / 2
+    offsety = (aabb.max[2] + aabb.min[2]) / 2
+    transformof(mimic).location = Vector2(offsetx, offsety)
+    mimic
+end
+
+function compute_size(parent::AbstractUIComponent, padding)
+    parentw, parenth = size(parent)
+    width  = parentw - padding[1] - padding[4]
+    height = parenth - padding[2] - padding[3]
+    width, height
+end
+
+@generate_properties ContainerLabelMimic begin
+    @set padding = normalize_padding(value)
+    
+    @set color = self.mimicked.material.color = value
+    @get color = self.mimicked.material.color
+    
+    @get font = self.mimicked.font
+    @set font = self.mimicked.font = value
+    
+    @get text = self.mimicked.text
+    @set text = self.mimicked.text = value
+    
+    @get realsize = self.mimicked.realsize
+    
+    @get halign = self.mimicked.halign
+    @set halign = self.mimicked.halign = value
+    
+    @get valign = self.mimicked.valign
+    @set valign = self.mimicked.valign = value
+    
+    @get lineheightmult = self.mimicked.lineheightmult
+    @set lingheightmult = self.mimicked.lineheightmult = value
 end
 
 
 ##############
 # Base methods
 
-# TODO: Get font name?
-Base.show(io::IO, lbl::Label) = write(io, "Label(<some font>, $(lblsizestr(lbl)), $(lbl.lineheightmult)× line height, $(lbl.halign), $(lbl.valign), $(lbl.origin), $(lblvisibilitystr(lbl)))")
-
-function lblsizestr(lbl::Label)
-    if lbl.width !== nothing && lbl.height !== nothing
-        "$(lbl.width)×$(lbl.height)"
-    elseif lbl.width !== nothing
-        "$(lbl.width)×min"
-    elseif lbl.height !== nothing
-        "min×$(lbl.height)"
-    else
-        "min×min"
-    end
+Base.size(lbl::Label) = (lbl.realsize[1], lbl.realsize[2])
+function Base.resize!(lbl::Label, width::Real, height::Real)
+    lbl.wantsize = Vector2{Union{Float64, AutoSize}}(width, height)
+    update!(lbl)
+    foreach(onparentresized!, childrenof(lbl))
+    lbl
 end
+
+# TODO: Get font name?
+Base.show(io::IO, lbl::Label) = write(io, "Label(<some font>, $(sizestring(lbl.realsize[1], lbl.realsize[2])), $(lbl.lineheightmult)× line height, $(lbl.halign), $(lbl.valign), $(lbl.origin), $(lblvisibilitystr(lbl)))")
+
 function lblvisibilitystr(lbl::Label)
     if lbl.visible
         "visible"

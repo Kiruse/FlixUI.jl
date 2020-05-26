@@ -1,11 +1,20 @@
 module FlixUI
+# -- Base imports --
 using GLFW
+# -- STD imports --
+using Printf
+# -- VPE imports --
 using VPECore
 using FlixGL
 using FreeType
+using GetSetProp
+# -- 3rd Party imports --
 using StaticArrays
 using BitFlags
+# -- Submodule imports --
 import FlixGL.LowLevel
+
+# General purpose methods exports
 export destroy, compile, compile!
 
 const dir_assets  = "$(@__DIR__)/../assets"
@@ -17,6 +26,7 @@ include("./Fonts.jl")
 include("./UIAbstracts.jl")
 include("./UIInputConfigs.jl")
 include("./UISystems.jl")
+include("./UIMimics.jl")
 include("./UIElements.jl")
 
 function __init__()
