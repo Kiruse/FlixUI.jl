@@ -100,6 +100,9 @@ function measure(font::Font, text::AbstractString; lineheightmult::Real = 1)
     height = measure_textheight(font, length(lines); lineheightmult=lineheightmult)
     (width, height)
 end
+function measure_textwidth(font::Font, text::AbstractString)
+    measure_textwidth(font, split(text, '\n'))
+end
 function measure_textwidth(font::Font, lines)
     reduce(max, (measure_linewidth(font, line) for line ∈ lines))
 end
@@ -109,7 +112,28 @@ function measure_textheight(font::Font, numlines::Integer; lineheightmult::Real)
 end
 function measure_linewidth(font::Font, text)
     @assert '\n' ∉ text
-    reduce(+, (getglyph(font, char).advance[1] for char ∈ text))
+    textlen = length(text)
+    
+    if textlen == 0 return 0 end
+    
+    linewidth = 1
+    for (i, char) ∈ enumerate(text)
+        glyph = getglyph(font, char)
+        gcols, _ = size(glyph)
+        
+        if i == 0
+            linewidth += max(glyph.bearing[1], 0)
+        else
+            linewidth += glyph.bearing[1]
+        end
+        
+        if i != textlen
+            linewidth += glyph.advance[1]
+        else
+            linewidth += gcols
+        end
+    end
+    linewidth
 end
 
 function findcolortype(font::Font, text::AbstractString)
