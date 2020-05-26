@@ -134,18 +134,12 @@ function getcolortype(ftpixelmode::UInt8)
     end
 end
 
-function compile(font::Font, text::AbstractString; linewidth::Optional{<:Integer} = nothing, lineheightmult::Real = 1.0, align::TextHorizontalAlignment = AlignLeft)
+function compile(font::Font, text::AbstractString; lineheightmult::Real = 1.0, align::TextHorizontalAlignment = AlignLeft)
     if isempty(text) return Image2D(NormColor[Black Black; Black Black]) end
     
     lines = normlines(text)
     
-    if linewidth === nothing
-        width, height = measure(font, text, lineheightmult=lineheightmult)
-    else
-        width  = linewidth
-        height = measure_textheight(font, length(lines), lineheightmult=lineheightmult)
-    end
-    
+    width, height = measure(font, text, lineheightmult=lineheightmult)
     pixels = zeros(findcolortype(font, text), height, width)
     lineheight = round(Int, font.lineheight * lineheightmult)
     

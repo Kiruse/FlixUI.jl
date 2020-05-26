@@ -101,7 +101,7 @@ function update!(lbl::Label)
 end
 
 function update_texture!(lbl::Label)
-    img = compile(lbl.font, lbl.text, linewidth=floor(Int64, lbl.wantsize[1]), lineheightmult=lbl.lineheightmult, align=lbl.halign)
+    img = compile(lbl.font, lbl.text, lineheightmult=lbl.lineheightmult, align=lbl.halign)
     imgw, imgh  = size(img)
     lbl.imgsize = Vector2(imgw, imgh)
     
