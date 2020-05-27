@@ -310,7 +310,8 @@ end
 Base.size(lbl::Label) = (lbl.realsize[1], lbl.realsize[2])
 function Base.resize!(lbl::Label, width::Real, height::Real)
     lbl.wantsize = Vector2{Union{Float64, AutoSize}}(width, height)
-    update!(lbl)
+    update_verts!(lbl)
+    update_uvs!(lbl)
     foreach(onparentresized!, childrenof(lbl))
     lbl
 end
