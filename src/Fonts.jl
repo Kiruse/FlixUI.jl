@@ -167,13 +167,18 @@ function compile(font::Font, text::AbstractString; lineheightmult::Real = 1.0, a
     pixels = zeros(findcolortype(font, text), height, width)
     lineheight = round(Int, font.lineheight * lineheightmult)
     
-    # TODO: Bearing.X can be negative - adjust for this on first characters of each line
-    
     pen = MVector(1, height - font.baseline) # 1-based index
     for line ∈ lines
         pen[1] = getpenxstart(font, line, width, align)
-        for char ∈ line
+        for (i, char) ∈ enumerate(line)
             glyph = getglyph(font, char)
+            
+            if i == 0
+                pen[1] += max(glyph.bearing[1], 0)
+            else
+                pen[1] += glyph.bearing[1]
+            end
+            
             pasteglyph!(pixels, glyph, pen)
             pen += glyph.advance
         end
@@ -202,7 +207,7 @@ end
 function pasteglyph!(pxs::Array{<:AbstractColor, 2}, glyph::FontGlyph, pen)
     irows, icols = size(pxs)
     gcols, grows = size(glyph)
-    xstart, yend = pen + glyph.bearing
+    xstart, yend = pen .+ (0, glyph.bearing[2])
     xend   = xstart + gcols
     ystart = yend - grows
     if ystart > 0 && xstart > 0 && yend <= irows && xend <= icols

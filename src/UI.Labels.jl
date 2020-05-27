@@ -78,9 +78,9 @@ function Label(text::AbstractString, font::Font;
               )
     lbl = Label(font, transform)
     lbl.text           = text
-    lbl.realsize       = Vector2(0, 0)
+    lbl.realsize       = Vector2(0.0, 0.0)
     lbl.imgsize        = Vector2(0, 0)
-    lbl.wantsize       = Vector2(width, height)
+    lbl.wantsize       = Vector2{Union{Float64, AutoSize}}(Float64(width), Float64(height))
     lbl.lineheightmult = lineheightmult
     lbl.halign         = halign
     lbl.valign         = valign
@@ -94,7 +94,7 @@ FlixGL.wantsrender(lbl::Label) = lbl.visible
 FlixGL.countverts(::Label) = 4
 FlixGL.drawmodeof(::Label) = LowLevel.TriangleFanDrawMode
 
-function update!(lbl::Label)
+function VPECore.update!(lbl::Label)
     update_texture!(lbl)
     update_verts!(lbl)
     update_uvs!(lbl)
