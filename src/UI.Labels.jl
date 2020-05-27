@@ -225,7 +225,7 @@ mutable struct ContainerLabelMimic <: AbstractUIMimic{Label}
     padding::NTuple{4, Int64}
     
     function ContainerLabelMimic(parent::AbstractUIElement, args::ContainerLabelArguments)
-        width, height = compute_size(parent, args.padding)
+        width, height = compute_label_size(parent, args.padding)
         lbl = Label(args.font)
         lbl.text = args.text
         lbl.wantsize = Vector2{Union{Float64, AutoSize}}(width == autosize ? autosize : Float64(width), height == autosize ? autosize : Float64(height))
@@ -257,7 +257,7 @@ end
 
 function update_size!(mimic::ContainerLabelMimic)
     lbl = mimic.mimicked
-    width, height = compute_size(parentof(lbl), mimic.padding)
+    width, height = compute_label_size(parentof(lbl), mimic.padding)
     lbl.wantsize  = Vector2{Union{Float64, AutoSize}}(width, height)
     update!(lbl)
     update_transform!(mimic)
@@ -272,7 +272,7 @@ function update_transform!(mimic::ContainerLabelMimic)
     mimic
 end
 
-function compute_size(parent::AbstractUIComponent, padding)
+function compute_label_size(parent::AbstractUIComponent, padding)
     parentw, parenth = size(parent)
     width  = parentw - padding[1] - padding[4]
     height = parenth - padding[2] - padding[3]
