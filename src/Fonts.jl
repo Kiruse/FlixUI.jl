@@ -206,7 +206,7 @@ function pasteglyph!(pxs::Array{<:AbstractColor, 2}, glyph::FontGlyph, pen)
     xend   = xstart + gcols
     ystart = yend - grows
     if ystart > 0 && xstart > 0 && yend <= irows && xend <= icols
-        pxs[ystart:yend-1, xstart:xend-1] .= pixels(glyph.img)
+        pxs[ystart:yend-1, xstart:xend-1] .+= pixels(glyph.img)
     end
     pxs
 end
