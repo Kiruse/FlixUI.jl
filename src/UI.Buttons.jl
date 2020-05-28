@@ -27,8 +27,8 @@ function Button(width::Real, height::Real, imgargs::AbstractBackgroundArguments;
     btn.background = containerbackground(btn, imgargs)
     btn
 end
-Button(img::Image2D, label::ContainerLabelArguments; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img.image)..., img, label, transform=transform, origin=origin)
-Button(img::Image2D; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img.image)..., img, transform=transform, origin=origin)
+Button(img::Image2D, label::ContainerLabelArguments; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img)..., BackgroundImageArguments(img), label, transform=transform, origin=origin)
+Button(img::Image2D; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img)..., BackgroundImageArguments(img), transform=transform, origin=origin)
 
 VPECore.eventlisteners(btn::Button) = btn.listeners
 uiinputconfig(::Button) = WantsMouseInput
