@@ -14,8 +14,10 @@ using BitFlags
 # -- Submodule imports --
 import FlixGL.LowLevel
 
+import VPECore: absolute, relative, resolvemeasure
+
 # General purpose methods exports
-export destroy, compile, compile!
+export compile, compile!
 
 const dir_assets  = "$(@__DIR__)/../assets"
 const dir_shaders = "$dir_assets/shaders"
@@ -28,6 +30,7 @@ include("./UIInputConfigs.jl")
 include("./UISystems.jl")
 include("./UIMimics.jl")
 include("./UIElements.jl")
+include("./UIContainers.jl")
 
 function __init__()
     global _ftlib

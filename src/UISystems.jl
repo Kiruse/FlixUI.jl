@@ -4,7 +4,7 @@
 # TODO: Determine hovered elements (sorted by z-index) and bubble events until either the end was reached or propagation stopped.
 # TODO: Support gamepads.
 
-export UISystem
+export UISystem, uisystem
 export InputMode, GameInputMode, UIInputMode
 export PressState, Pressed, Released, Repeated
 export CursorMode, NormalCursor, HiddenCursor, CapturedCursor
@@ -52,31 +52,38 @@ delta between current and last virtual mouse position must be calculated.
  """
 mutable struct UISystem
     window::Window
+    world::World
     inputmode::InputMode
-    focuselement::Optional{AbstractUIElement}
-    elements::Vector{AbstractUIElement}
-    hoveredelements::Set{AbstractUIElement}
+    focuselement::Optional{AbstractUIComponent}
+    elements::Vector{AbstractUIComponent}
+    hoveredelements::Set{AbstractUIComponent}
     listeners::ListenersType
     ismouseover::Bool
     scroll::Vector2{Float64}
     
-    function UISystem(wnd, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
-        inst = new(wnd, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
-        GLFW.SetCursorPosCallback(  wnd.handle, curry(UISystemGLFWEvents.onmousemoveinput, inst))
-        GLFW.SetCursorEnterCallback(wnd.handle, curry(UISystemGLFWEvents.onmouseover,      inst))
-        GLFW.SetKeyCallback(        wnd.handle, curry(UISystemGLFWEvents.onkeyinput,       inst))
-        GLFW.SetCharCallback(       wnd.handle, curry(UISystemGLFWEvents.oncharinput,      inst))
-        GLFW.SetMouseButtonCallback(wnd.handle, curry(UISystemGLFWEvents.onmouseinput,     inst))
-        GLFW.SetScrollCallback(     wnd.handle, curry(UISystemGLFWEvents.onscrollinput,    inst))
+    function UISystem(wnd, world, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
+        inst = new(wnd, world, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
+        GLFW.SetCursorPosCallback(  wnd.handle, curry(UISystemEvents.onmousemoveinput, inst))
+        GLFW.SetCursorEnterCallback(wnd.handle, curry(UISystemEvents.onmouseover,      inst))
+        GLFW.SetKeyCallback(        wnd.handle, curry(UISystemEvents.onkeyinput,       inst))
+        GLFW.SetCharCallback(       wnd.handle, curry(UISystemEvents.oncharinput,      inst))
+        GLFW.SetMouseButtonCallback(wnd.handle, curry(UISystemEvents.onmouseinput,     inst))
+        GLFW.SetScrollCallback(     wnd.handle, curry(UISystemEvents.onscrollinput,    inst))
+        hook!(curry(UISystemEvents.onwindowresize,   inst), wnd, :WindowResize)
+        hook!(curry(UISystemEvents.onelementadded,   inst), world, :RootAdded)
+        hook!(curry(UISystemEvents.onelementremoved, inst), world, :RootRemoved)
+        push!(world, inst)
         inst
     end
 end
-UISystem(wnd::Window) = UISystem(wnd, GameInputMode, nothing, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
+UISystem(wnd::Window, world::World) = UISystem(wnd, world, GameInputMode, nothing, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
+uisystem(wnd::Window, world::World) = UISystem(wnd, world)
+uisystem(fn, wnd::Window, world::World) = (uisys = UISystem(wnd, world); fn(uisys); close(wnd))
 
 VPECore.eventlisteners(sys::UISystem) = sys.listeners
 
 
-module UISystemGLFWEvents
+module UISystemEvents
 using GLFW
 using VPECore
 using FlixGL
@@ -109,7 +116,7 @@ function onmousemoveinput(uisys, _, xpos, ypos)
     pos = Vector2{Float64}(xpos - wndwidth/2, -ypos + wndheight/2)
     
     oldhovered = uisys.hoveredelements
-    newhovered = uisys.hoveredelements = Set{AbstractUIElement}(filter(elem->ispointover(elem, pos), uisys.elements))
+    newhovered = uisys.hoveredelements = Set{AbstractUIComponent}(filter(elem->ispointover(elem, pos), uisys.elements))
     
     emit(uisys, :MouseMove, pos)
     if uisys.inputmode == UIInputMode
@@ -164,14 +171,32 @@ function onscrollinput(uisys, _, xoffset, yoffset)
     end
 end
 
+function onelementadded(uisys, transform)
+    elem = getcustomdata(AbstractUIComponent, transform)
+    if elem !== nothing
+        push!(uisys.elements, elem)
+    end
+end
+
+function onelementremoved(uisys, transform)
+    elem = getcustomdata(AbstractUIComponent, transform)
+    if elem !== nothing
+        delete!(uisys.elements, elem)
+    end
+end
+
+function onwindowresize(uisys, _)
+    foreach(FlixUI.onparentresized!, uisys.elements)
+end
+
 wantsmouseinput(   elem) = WantsMouseInput    ∈ uiinputconfig(elem)
 wantskeyboardinput(elem) = WantsKeyboardInput ∈ uiinputconfig(elem)
 wantstextinput(    elem) = WantsTextInput     ∈ uiinputconfig(elem)
 wantsscrollinput(  elem) = WantsScrollInput   ∈ uiinputconfig(elem)
-end # module UISystemGLFWEvents
+end # module UISystemEvents
 
 focusedelement(uisys::UISystem) = uisys.focuselement
-function focuselement!(uisys::UISystem, elem::Optional{AbstractUIElement})
+function focuselement!(uisys::UISystem, elem::Optional{AbstractUIComponent})
     if uisys.focuselement !== nothing
         emit(uisys.focuselement, :Defocus)
     end
@@ -185,19 +210,28 @@ function focuselement!(uisys::UISystem, elem::Optional{AbstractUIElement})
     elem
 end
 
-function register!(uisys::UISystem, elem)
-    push!(uisys.elements, elem)
+
+function VPECore.hook!(uisys::UISystem, world::World)
+    uisys.world = world
+    hook!(curry(UISystemEvents.onelementadded, uisys), world, :ElementAdded)
+    hook!(curry(UISystemEvents.onelementremoved, uisys), world, :ElementRemoved)
     uisys
 end
 
-function remove!(uisys::UISystem, elem)
-    delete!(uisys.elements, elem)
-    uisys
-end
-
-function FlixUI.tick!(uisys::UISystem, dt::AbstractFloat)
+function VPECore.tick!(uisys::UISystem, dt::AbstractFloat)
     uisys.scroll = Vector2{Float64}(0, 0)
     GLFW.PollEvents()
+end
+
+function Base.close(uisys::UISystem)
+    unhook!(uisys.window, :WindowResize, UISystemEvents.onwindowresize)
+    unhook!(uisys.world,  :ElementAdded, UISystemEvents.onelementadded)
+    unhook!(uisys.world,  :ElementRemoved, UISystemEvents.onelementremoved)
+    uisys.listeners = ListenersType()
+    uisys.focuselement = nothing
+    uisys.hoveredelements = Set(AbstractUIComponent[])
+    uisys.elements = AbstractUIComponent[]
+    nothing
 end
 
 getinputmode(uisys::UISystem) = uisys.inputmode

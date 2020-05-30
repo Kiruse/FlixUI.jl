@@ -52,7 +52,7 @@ function font(path::String, idx::Integer = 1; size::Integer = 0)
     fnt
 end
 
-function destroy(font::Font)
+function Base.close(font::Font)
     FT_Done_Face(font.handle)
 end
 

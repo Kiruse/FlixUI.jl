@@ -1,7 +1,7 @@
 export Image
-export AbstractBackgroundMimic, AbstractBackgroundArguments
-export BackgroundImageMimic, BackgroundImageArguments
-export BackgroundColorMimic, BackgroundColorArguments
+export AbstractBackgroundMimic, AbstractBackgroundArgs
+export BackgroundImageMimic, BackgroundImageArgs
+export BackgroundColorMimic, BackgroundColorArgs
 export containerbackground
 
 mutable struct Image <: AbstractUIElement
@@ -60,12 +60,12 @@ end
 # Mimics
 
 abstract type AbstractBackgroundMimic <: AbstractUIMimic{Image} end
-abstract type AbstractBackgroundArguments end
+abstract type AbstractBackgroundArgs end
 
-mutable struct BackgroundImageArguments <: AbstractBackgroundArguments
+mutable struct BackgroundImageArgs <: AbstractBackgroundArgs
     image::Image2D
 end
-mutable struct BackgroundColorArguments <: AbstractBackgroundArguments
+mutable struct BackgroundColorArgs <: AbstractBackgroundArgs
     color::AbstractColor
 end
 
@@ -80,7 +80,7 @@ mutable struct BackgroundImageMimic <: AbstractBackgroundMimic
         inst
     end
 end
-BackgroundImageMimic(parent::AbstractUIElement, args::BackgroundImageArguments) = BackgroundImageMimic(parent, args.image)
+BackgroundImageMimic(parent::AbstractUIElement, args::BackgroundImageArgs) = BackgroundImageMimic(parent, args.image)
 
 mutable struct BackgroundColorMimic <: AbstractBackgroundMimic
     mimicked::Image
@@ -96,7 +96,7 @@ mutable struct BackgroundColorMimic <: AbstractBackgroundMimic
         inst
     end
 end
-BackgroundColorMimic(parent::AbstractUIElement, args::BackgroundColorArguments) = BackgroundColorMimic(parent, args.color)
+BackgroundColorMimic(parent::AbstractUIElement, args::BackgroundColorArgs) = BackgroundColorMimic(parent, args.color)
 
 FlixGL.parent!(::AbstractBackgroundMimic, ::AbstractEntity) = error("Cannot parent a background image mimic to a non-UI entity")
 FlixGL.parent!(bgimg::AbstractBackgroundMimic, parent::AbstractUIElement) = parent!(transformof(bgimg), transformof(parent))
@@ -120,8 +120,8 @@ end
 
 backgroundimage_centerlocation(parent::AbstractUIElement) = (aabb = bounds(parent); Vector2(aabb.max[1] - aabb.min[1], aabb.max[2] - aabb.min[2]))
 
-containerbackground(parent::AbstractUIElement, args::BackgroundImageArguments) = BackgroundImageMimic(parent, args)
-containerbackground(parent::AbstractUIElement, args::BackgroundColorArguments) = BackgroundColorMimic(parent, args)
+containerbackground(parent::AbstractUIElement, args::BackgroundImageArgs) = BackgroundImageMimic(parent, args)
+containerbackground(parent::AbstractUIElement, args::BackgroundColorArgs) = BackgroundColorMimic(parent, args)
 
 
 ##############

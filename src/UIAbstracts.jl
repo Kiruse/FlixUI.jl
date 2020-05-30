@@ -1,11 +1,11 @@
-export AbstractUIElement, AbstractUIContainer, AbstractUIMimic, AbstractUIElementFactory, UIEntity
+export AbstractUIComponent, AbstractUIElement, AbstractUIContainer, AbstractUIContainerSlot, AbstractUIMimic, UIEntity
 export mimickedtype, mimicked
 
 abstract type AbstractUIComponent <: AbstractEntity2D end
 abstract type AbstractUIElement   <: AbstractUIComponent end
 abstract type AbstractUIContainer <: AbstractUIElement end
 abstract type AbstractUIMimic{T<:AbstractUIElement} <: AbstractUIComponent end
-abstract type AbstractUIElementFactory end
+abstract type AbstractUIContainerSlot <: AbstractUIComponent end
 
 const Mimicks{T<:AbstractUIElement} = Union{T, AbstractUIMimic{T}}
 

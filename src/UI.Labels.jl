@@ -2,7 +2,7 @@
 # Integration of the FreeType abstraction layer with the Entity system.
 # TODO: Anchor text to different locations
 
-export Label, ContainerLabelMimic, ContainerLabelArguments
+export Label, ContainerLabelMimic, ContainerLabelArgs
 
 struct LabelVAO <: AbstractVertexArrayData
     internal::LowLevel.VertexArray
@@ -18,10 +18,10 @@ function LabelVAO()
     LabelVAO(internal, vbo_coords, vbo_uvs)
 end
 
-function FlixGL.destroy(vao::LabelVAO)
-    LowLevel.destroy(vao.internal)
-    LowLevel.destroy(vao.vbo_coords)
-    LowLevel.destroy(vao.vbo_uvs)
+function Base.close(vao::LabelVAO)
+    close(vao.internal)
+    close(vao.vbo_coords)
+    close(vao.vbo_uvs)
 end
 
 mutable struct LabelMaterial <: AbstractMaterial
@@ -111,7 +111,7 @@ function update_texture!(lbl::Label)
     
     # Update texture
     if lbl.material.tex !== nothing
-        FlixGL.destroy(lbl.material.tex)
+        close(lbl.material.tex)
     end
     lbl.material.tex = wrapping!(texture(img), ClampToBorderWrap, ClampToBorderWrap, border=Black)
     lbl
@@ -190,7 +190,7 @@ end
 ########
 # Mimics
 
-mutable struct ContainerLabelArguments
+mutable struct ContainerLabelArgs
     text::AbstractString
     font::Font
     padding::NTuple{4, Int64}
@@ -199,11 +199,11 @@ mutable struct ContainerLabelArguments
     halign::TextHorizontalAlignment
     valign::TextVerticalAlignment
     
-    function ContainerLabelArguments(label::AbstractString, font::Font, padding, color::Color, lineheightmult::Real, halign::TextHorizontalAlignment, valign::TextVerticalAlignment)
+    function ContainerLabelArgs(label::AbstractString, font::Font, padding, color::Color, lineheightmult::Real, halign::TextHorizontalAlignment, valign::TextVerticalAlignment)
         new(label, font, normalize_padding(padding), color, lineheightmult, halign, valign)
     end
 end
-function ContainerLabelArguments(font::Font;
+function ContainerLabelArgs(font::Font;
                                  text::AbstractString = "",
                                  padding = 0,
                                  color::Color = White,
@@ -211,10 +211,10 @@ function ContainerLabelArguments(font::Font;
                                  halign::TextHorizontalAlignment = AlignCenter,
                                  valign::TextVerticalAlignment = AlignMiddle,
                                 )
-    ContainerLabelArguments(text, font, padding, color, lineheightmult, halign, valign)
+    ContainerLabelArgs(text, font, padding, color, lineheightmult, halign, valign)
 end
 
-@generate_properties ContainerLabelArguments begin
+@generate_properties ContainerLabelArgs begin
     @set padding = normalize_padding(value)
 end
 
@@ -224,7 +224,7 @@ mutable struct ContainerLabelMimic <: AbstractUIMimic{Label}
     mimicked::Label
     padding::NTuple{4, Int64}
     
-    function ContainerLabelMimic(parent::AbstractUIElement, args::ContainerLabelArguments)
+    function ContainerLabelMimic(parent::AbstractUIElement, args::ContainerLabelArgs)
         width, height = compute_label_size(parent, args.padding)
         lbl = Label(args.font)
         lbl.text = args.text
