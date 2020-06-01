@@ -70,8 +70,10 @@ mutable struct UISystem
         GLFW.SetMouseButtonCallback(wnd.handle, curry(UISystemEvents.onmouseinput,     inst))
         GLFW.SetScrollCallback(     wnd.handle, curry(UISystemEvents.onscrollinput,    inst))
         hook!(curry(UISystemEvents.onwindowresize,   inst), wnd, :WindowResize)
-        hook!(curry(UISystemEvents.onelementadded,   inst), world, :RootAdded)
-        hook!(curry(UISystemEvents.onelementremoved, inst), world, :RootRemoved)
+        hook!(curry(UISystemEvents.onelementadded,   inst), world, :AddRoot)
+        hook!(curry(UISystemEvents.onelementadded,   inst), world, :AddChild)
+        hook!(curry(UISystemEvents.onelementremoved, inst), world, :RemoveRoot)
+        hook!(curry(UISystemEvents.onelementremoved, inst), world, :RemoveChild)
         push!(world, inst)
         inst
     end
