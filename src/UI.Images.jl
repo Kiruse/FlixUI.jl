@@ -39,6 +39,7 @@ FlixGL.materialof( img::Image) = FlixGL.materialof(img.sprite)
 FlixGL.drawmodeof( img::Image) = FlixGL.drawmodeof(img.sprite)
 
 # Overridden Entity Getters/Setters
+FlixGL.isvisible(img::Image) = isvisible(img.sprite)
 FlixGL.setvisibility!(img::Image, visible::Bool) = setvisibility!(img.sprite, visible)
 
 setuvs!(img::Mimicks, uvs::Rect{Float32}) = FlixGL.change_sprite_uvs(mimicked(img).sprite, uvs)
@@ -122,6 +123,7 @@ backgroundimage_centerlocation(parent::AbstractUIElement) = (aabb = bounds(paren
 
 containerbackground(parent::AbstractUIElement, args::BackgroundImageArgs) = BackgroundImageMimic(parent, args)
 containerbackground(parent::AbstractUIElement, args::BackgroundColorArgs) = BackgroundColorMimic(parent, args)
+containerbackground(::AbstractUIElement, ::Nothing) = nothing
 
 
 ##############
