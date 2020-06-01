@@ -60,6 +60,19 @@ function FlixGL.setvisibility!(slot::LayoutContainerSlot, visible::Bool)
     setvisibility!(slot.element, visible)
     slot.visible = visible
 end
+function FlixGL.collectentities!(ntts::Vector{T}, cnt::LayoutContainer, cls::Type{<:EntityClass}) where {T<:AbstractEntity}
+    if isa(FlixGL.entityclass(LayoutContainer), cls)
+        push!(ntts, cnt)
+        FlixGL.collectentities!(ntts, cnt.background, cls)
+        for child ∈ childrenof(cnt)
+            if child !== cnt.background
+                FlixGL.collectentities!(ntts, child, cls)
+            end
+        end
+    end
+    
+    ntts
+end
 
 Base.length(cnt::LayoutContainer) = length(cnt.slots)
 Base.keys(  cnt::LayoutContainer) = keys(cnt.slots)
