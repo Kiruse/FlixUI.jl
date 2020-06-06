@@ -173,16 +173,14 @@ function onscrollinput(uisys, _, xoffset, yoffset)
     end
 end
 
-function onelementadded(uisys, transform)
-    elem = getcustomdata(AbstractUIComponent, transform)
-    if elem !== nothing
+function onelementadded(uisys, elem)
+    if isa(elem, AbstractUIComponent)
         push!(uisys.elements, elem)
     end
 end
 
-function onelementremoved(uisys, transform)
-    elem = getcustomdata(AbstractUIComponent, transform)
-    if elem !== nothing
+function onelementremoved(uisys, elem)
+    if isa(elem, AbstractUIComponent)
         delete!(uisys.elements, elem)
     end
 end

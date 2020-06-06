@@ -5,19 +5,26 @@
 
 export Textfield
 
-mutable struct Textfield <: AbstractUIElement
-    width::Float64
-    height::Float64
+mutable struct Textfield{T} <: AbstractUIElement
+    width::T
+    height::T
     origin::Anchor
-    label::Optional{ContainerLabelMimic}
-    background::Optional{AbstractBackgroundMimic}
+    label::Optional{ContainerLabelMimic{T}}
+    background::Optional{AbstractBackgroundMimic{T}}
     visible::Bool
-    transform::Transform2D
+    transform::Entity2DTransform{T}
     listeners::ListenersType
     
-    function Textfield(width, height, origin, label, background, visible, transform, listeners)
-        inst = new(width, height, origin, label, background, visible, transform, listeners)
-        transform.customdata = inst
+    function Textfield{T}(width::Real,
+                          height::Real,
+                          label::ContainerLabelArgs{T},
+                          background::Optional{AbstractBackgroundArgs{T}},
+                          origin::Anchor = CenterAnchor,
+                          transform::Entity2DTransform{T} = defaulttransform()
+                         ) where T
+        inst = new{T}(width, height, origin, nothing, nothing, true, transform, ListenersType())
+        inst.background = containerbackground(inst, background)
+        inst.label = ContainerLabelMimic(inst, label)
         hook!(curry(textfield_receivechar, inst), inst, :CharReceived)
         hook!(curry(textfield_keypress,    inst), inst, :KeyPress)
         hook!(curry(textfield_keypress,    inst), inst, :KeyRepeat)
@@ -26,32 +33,27 @@ mutable struct Textfield <: AbstractUIElement
 end
 function Textfield(width::Real,
                    height::Real,
-                   labelargs::ContainerLabelArgs;
+                   labelargs::ContainerLabelArgs{T},
                    origin::Anchor = CenterAnchor,
-                   transform::Transform2D = Transform2D{Float64}()
-                  )
-    inst = Textfield(width, height, origin, nothing, nothing, true, transform, ListenersType())
-    inst.label = ContainerLabelMimic(inst, labelargs)
-    inst
+                   transform::Entity2DTransform{T} = defaulttransform()
+                  ) where T
+    Textfield{T}(width, height, labelargs, nothing, origin, transform)
 end
 function Textfield(width::Real,
                    height::Real,
-                   bgargs::AbstractBackgroundArgs,
-                   labelargs::ContainerLabelArgs,
+                   bgargs::AbstractBackgroundArgs{T},
+                   labelargs::ContainerLabelArgs{T},
                    origin::Anchor = CenterAnchor,
-                   transform::Transform2D = Transform2D{Float64}()
-                  )
-    inst = Textfield(width, height, origin, nothing, nothing, true, transform, ListenersType())
-    inst.background = containerbackground(inst, bgargs)
-    inst.label = ContainerLabelMimic(inst, labelargs)
-    inst
+                   transform::Entity2DTransform{T} = defaulttransform()
+                  ) where T
+    Textfield{T}(width, height, labelargs, bgargs, origin, transform)
 end
 function Textfield(bgimage::Image2D,
-                   labelargs::ContainerLabelArgs,
+                   labelargs::ContainerLabelArgs{T},
                    origin::Anchor = CenterAnchor,
-                   transform::Transform2D = Transform2D{Float64}()
-                  )
-    Textfield(size(bgimage)..., BackgroundImageArgs(bgimage), labelargs, origin, anchor, transform)
+                   transform::Entity2DTransform{T} = defaulttransform()
+                  ) where T
+    Textfield(size(bgimage)..., BackgroundImageArgs{T}(bgimage), labelargs, origin, transform)
 end
 
 VPECore.eventlisteners(text::Textfield) = text.listeners
