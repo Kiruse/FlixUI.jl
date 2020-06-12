@@ -9,26 +9,20 @@ mutable struct Button <: AbstractUIElement
     visible::Bool
     transform::Transform2D
     listeners::ListenersType
-    
-    function Button(width, height, origin, label, background, visible, transform, listeners)
-        inst = new(width, height, origin, label, background, visible, transform, listeners)
-        transform.customdata = inst
-        inst
-    end
 end
-function Button(width::Real, height::Real, imgargs::AbstractBackgroundArgs, labelargs::ContainerLabelArgs; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
+function Button(width::Real, height::Real, imgargs::AbstractBackgroundArgs, labelargs::ContainerLabelArgs; transform::Entity2DTransform = defaulttransform(), origin::Anchor = CenterAnchor)
     btn = Button(width, height, origin, nothing, nothing, true, transform, ListenersType())
     btn.background = containerbackground(btn, imgargs)
     btn.label = ContainerLabelMimic(btn, labelargs)
     btn
 end
-function Button(width::Real, height::Real, imgargs::AbstractBackgroundArgs; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor)
-    btn = Button(width, height, origin, nothing, nothing, visible, transform, ListenersType())
+function Button(width::Real, height::Real, imgargs::AbstractBackgroundArgs; transform::Entity2DTransform = defaulttransform(), origin::Anchor = CenterAnchor)
+    btn = Button(width, height, origin, nothing, nothing, true, transform, ListenersType())
     btn.background = containerbackground(btn, imgargs)
     btn
 end
-Button(img::Image2D, label::ContainerLabelArgs; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img)..., BackgroundImageArgs(img), label, transform=transform, origin=origin)
-Button(img::Image2D; transform::Transform2D = Transform2D{Float64}(), origin::Anchor = CenterAnchor) = Button(size(img)..., BackgroundImageArgs(img), transform=transform, origin=origin)
+Button(img::Image2D, label::ContainerLabelArgs; transform::Entity2DTransform = defaulttransform(), origin::Anchor = CenterAnchor) = Button(size(img)..., BackgroundImageArgs(img), label, transform=transform, origin=origin)
+Button(img::Image2D; transform::Entity2DTransform = defaulttransform(), origin::Anchor = CenterAnchor) = Button(size(img)..., BackgroundImageArgs(img), transform=transform, origin=origin)
 
 VPECore.eventlisteners(btn::Button) = btn.listeners
 uiinputconfig(::Button) = WantsMouseInput

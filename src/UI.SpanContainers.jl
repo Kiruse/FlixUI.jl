@@ -10,30 +10,30 @@ resizing and will always override this behavior manually. The slotted element wi
 container. As such, the container is meant to add spanning features to any resizeable element. This behavior is
 essentially identical to that of `BackgroundImageMimic`s and `BackgroundColorMimic`s.
 """
-mutable struct SpanContainer <: AbstractUIContainer
-    realsize::Vector2{Float64}
-    wantsize::Measure2{Float64}
+mutable struct SpanContainer{T} <: AbstractUIContainer
+    realsize::Vector2{T}
+    wantsize::Measure2{T}
     origin::Anchor
     element::Optional{AbstractUIComponent}
     background::Optional{AbstractBackgroundMimic}
     visible::Bool
-    transform::Transform2D
+    transform::Entity2DTransform{T}
     
-    function SpanContainer(wantsize::Measure2, origin::Anchor = CenterAnchor, transform::Transform2D = Transform2D{Float64}())
-        inst = transform.customdata = new(Vector2{Float64}(0, 0), wantsize, origin, nothing, nothing, true, transform)
+    function SpanContainer(wantsize::Measure2, origin::Anchor = CenterAnchor, transform::Entity2DTransform{T} = defaulttransform()) where T
+        inst = new{T}(Vector2{T}(0, 0), wantsize, origin, nothing, nothing, true, transform)
         update_size!(inst)
         inst
     end
 end
-function SpanContainer(size::Measure2, bgargs::Optional{AbstractBackgroundArgs}, origin::Anchor = CenterAnchor, transform::Transform2D = Transform2D{Float64}())
+function SpanContainer(size::Measure2, bgargs::Optional{AbstractBackgroundArgs}, origin::Anchor = CenterAnchor, transform::Entity2DTransform = defaulttransform())
     cnt = SpanContainer(size, origin, transform)
     cnt.background = containerbackground(cnt, bgargs)
     cnt
 end
-SpanContainer(width::MeasureValue, height::MeasureValue, bgargs::AbstractBackgroundArgs, origin::Anchor = CenterAnchor, transform::Transform2D = Transform2D{Float64}()) = SpanContainer(Measure2(width, height), bgargs, origin, transform)
-SpanContainer(width::MeasureValue, height::MeasureValue,                                 origin::Anchor = CenterAnchor, transform::Transform2D = Transform2D{Float64}()) = SpanContainer(Measure2(width, height), origin, transform)
-SpanContainer(width::Real, height::Real, bgargs::AbstractBackgroundArgs, origin::Anchor = CenterAnchor, transform::Transform2D = Transform2D{Float64}()) = SpanContainer(Measure2(absolute(width), absolute(height)), bgargs, origin, transform)
-SpanContainer(width::Real, height::Real,                                 origin::Anchor = CenterAnchor, transform::Transform2D = Transform2D{Float64}()) = SpanContainer(Measure2(absolute(width), absolute(height)), origin, transform)
+SpanContainer(width::MeasureValue, height::MeasureValue, bgargs::AbstractBackgroundArgs, origin::Anchor = CenterAnchor, transform::Entity2DTransform = defaulttransform()) = SpanContainer(Measure2(width, height), bgargs, origin, transform)
+SpanContainer(width::MeasureValue, height::MeasureValue,                                 origin::Anchor = CenterAnchor, transform::Entity2DTransform = defaulttransform()) = SpanContainer(Measure2(width, height), origin, transform)
+SpanContainer(width::Real, height::Real, bgargs::AbstractBackgroundArgs, origin::Anchor = CenterAnchor, transform::Entity2DTransform = defaulttransform()) = SpanContainer(Measure2(absolute(width), absolute(height)), bgargs, origin, transform)
+SpanContainer(width::Real, height::Real,                                 origin::Anchor = CenterAnchor, transform::Entity2DTransform = defaulttransform()) = SpanContainer(Measure2(absolute(width), absolute(height)), origin, transform)
 
 function slot!(cnt::SpanContainer, el::AbstractUIComponent)
     cnt.element = el
@@ -47,6 +47,9 @@ unslot(cnt::SpanContainer) = cnt.element = nothing
 function FlixGL.setvisibility!(cnt::SpanContainer, visible::Bool)
     if cnt.element !== nothing
         setvisibility!(cnt.element, visible)
+    end
+    if cnt.background !== nothing
+        setvisibility!(cnt.background, visible)
     end
     cnt.visible = visible
 end

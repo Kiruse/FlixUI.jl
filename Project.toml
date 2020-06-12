@@ -1,7 +1,7 @@
 name = "FlixUI"
 uuid = "549ea399-ff4d-4e8d-a639-d3a73b0d6647"
 authors = ["Kiruse <neurokiruse@outlook.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 BitFlags = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"

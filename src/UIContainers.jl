@@ -1,7 +1,7 @@
-export slot!, slot, elements
+export slot!, slot, unslot!, elements
 
-include("./UI.LayoutContainer.jl")
-include("./UI.SpanContainer.jl")
+include("./UI.LayoutContainers.jl")
+include("./UI.SpanContainers.jl")
 
 function Base.resize!(cnt::AbstractUIContainer, width::Real, height::Real)
     cnt.wantsize = Measure2(absolute(width), absolute(height))

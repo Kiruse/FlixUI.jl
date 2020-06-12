@@ -44,28 +44,22 @@ function FlixGL.use(mat::LabelMaterial)
     LowLevel.uniform(resolve!(unidLabelColor, mat), collect(mat.color)...)
 end
 
-mutable struct Label <: AbstractUIElement
+mutable struct Label{T} <: AbstractUIElement
     vao::LabelVAO
     font::Font
     text::AbstractString
-    realsize::Vector2{Float64}
+    realsize::Vector2{T}
     imgsize::Vector2{Int64}
-    wantsize::Vector2{Union{Float64, AutoSize}}
+    wantsize::Vector2{Union{T, AutoSize}}
     lineheightmult::Float64
     halign::TextHorizontalAlignment
     valign::TextVerticalAlignment
     origin::Anchor
     visible::Bool
-    transform::Transform2D
+    transform::Entity2DTransform{T}
     material::LabelMaterial
-    
-    function Label(vao, font, text, realsize, imgsize, wantsize, lineheightmult, halign, valign, origin, visible, transform, material)
-        inst = new(vao, font, text, realsize, imgsize, wantsize, lineheightmult, halign, valign, origin, visible, transform, material)
-        transform.customdata = inst
-        inst
-    end
 end
-Label(font::Font, transform::Transform2D = Transform2D{Float64}()) = Label(LabelVAO(), font, "", Vector2(0, 0), Vector2(0, 0), Vector2(autosize, autosize), 0, AlignLeft, AlignTop, CenterAnchor, false, transform, LabelMaterial())
+Label(font::Font, transform::Entity2DTransform{T} = defaulttransform()) where T = Label{T}(LabelVAO(), font, "", Vector2(0, 0), Vector2(0, 0), Vector2(autosize, autosize), 0, AlignLeft, AlignTop, CenterAnchor, false, transform, LabelMaterial())
 function Label(text::AbstractString, font::Font;
                width::Union{<:Real, AutoSize} = autosize,
                height::Union{<:Real, AutoSize} = autosize,
@@ -74,13 +68,13 @@ function Label(text::AbstractString, font::Font;
                halign::TextHorizontalAlignment = AlignLeft,
                valign::TextVerticalAlignment = AlignTop,
                origin::Anchor = CenterAnchor,
-               transform::Transform2D = Transform2D{Float64}()
-              )
+               transform::Entity2DTransform{T} = defaulttransform()
+              ) where T
     lbl = Label(font, transform)
     lbl.text           = text
-    lbl.realsize       = Vector2(0.0, 0.0)
+    lbl.realsize       = Vector2{T}(0, 0)
     lbl.imgsize        = Vector2(0, 0)
-    lbl.wantsize       = Vector2{Union{Float64, AutoSize}}(Float64(width), Float64(height))
+    lbl.wantsize       = Vector2{Union{T, AutoSize}}(T(width), T(height))
     lbl.lineheightmult = lineheightmult
     lbl.halign         = halign
     lbl.valign         = valign
@@ -190,7 +184,7 @@ end
 ########
 # Mimics
 
-mutable struct ContainerLabelArgs
+mutable struct ContainerLabelArgs{T}
     text::AbstractString
     font::Font
     padding::NTuple{4, Int64}
@@ -199,19 +193,29 @@ mutable struct ContainerLabelArgs
     halign::TextHorizontalAlignment
     valign::TextVerticalAlignment
     
-    function ContainerLabelArgs(label::AbstractString, font::Font, padding, color::Color, lineheightmult::Real, halign::TextHorizontalAlignment, valign::TextVerticalAlignment)
-        new(label, font, normalize_padding(padding), color, lineheightmult, halign, valign)
+    function ContainerLabelArgs{T}(label::AbstractString, font::Font, padding, color::Color, lineheightmult::Real, halign::TextHorizontalAlignment, valign::TextVerticalAlignment) where T
+        new{T}(label, font, normalize_padding(padding), color, lineheightmult, halign, valign)
     end
 end
+function ContainerLabelArgs{T}(font::Font;
+                               text::AbstractString = "",
+                               padding = 0,
+                               color::Color = White,
+                               lineheightmult::Real = 1,
+                               halign::TextHorizontalAlignment = AlignCenter,
+                               valign::TextVerticalAlignment = AlignMiddle
+                              ) where T
+    ContainerLabelArgs{T}(text, font, padding, color, lineheightmult, halign, valign)
+end
 function ContainerLabelArgs(font::Font;
-                                 text::AbstractString = "",
-                                 padding = 0,
-                                 color::Color = White,
-                                 lineheightmult::Real = 1,
-                                 halign::TextHorizontalAlignment = AlignCenter,
-                                 valign::TextVerticalAlignment = AlignMiddle,
-                                )
-    ContainerLabelArgs(text, font, padding, color, lineheightmult, halign, valign)
+                            text::AbstractString = "",
+                            padding = 0,
+                            color::Color = White,
+                            lineheightmult::Real = 1,
+                            halign::TextHorizontalAlignment = AlignCenter,
+                            valign::TextVerticalAlignment = AlignMiddle
+                           )
+    ContainerLabelArgs{transformparam(default_transform_type())}(text, font, padding, color, lineheightmult, halign, valign)
 end
 
 @generate_properties ContainerLabelArgs begin
@@ -220,33 +224,32 @@ end
 
 
 """A mimic labelling a container with various settings concerning its relative size."""
-mutable struct ContainerLabelMimic <: AbstractUIMimic{Label}
-    mimicked::Label
+mutable struct ContainerLabelMimic{T} <: AbstractUIMimic{Label{T}}
+    mimicked::Label{T}
     padding::NTuple{4, Int64}
     
-    function ContainerLabelMimic(parent::AbstractUIElement, args::ContainerLabelArgs)
+    function ContainerLabelMimic{T}(parent::AbstractUIElement, args::ContainerLabelArgs{T}) where T
         width, height = compute_label_size(parent, args.padding)
-        lbl = Label(args.font)
+        lbl = Label(args.font, Entity2DTransform{T}())
         lbl.text = args.text
-        lbl.wantsize = Vector2{Union{Float64, AutoSize}}(width == autosize ? autosize : Float64(width), height == autosize ? autosize : Float64(height))
+        lbl.wantsize = Vector2{Union{T, AutoSize}}(width == autosize ? autosize : T(width), height == autosize ? autosize : T(height))
         lbl.lineheightmult = args.lineheightmult
         lbl.material.color = args.color
-        lbl.lineheightmult = args.lineheightmult
         lbl.halign = args.halign
         lbl.valign = args.valign
         lbl.visible = true
         
-        inst = new(lbl, normalize_padding(args.padding))
+        inst = new{T}(lbl, normalize_padding(args.padding))
         parent!(inst, parent)
         update_transform!(inst)
-        transformof(inst).customdata = inst
         update!(lbl)
         inst
     end
 end
+ContainerLabelMimic(parent::AbstractUIElement, args::ContainerLabelArgs{T}) where T = ContainerLabelMimic{T}(parent, args)
 
 FlixGL.parent!(::ContainerLabelMimic, ::AbstractEntity) = error("Cannot parent a ContainerLabelMimic to a non-UI entity")
-FlixGL.parent!(mimic::ContainerLabelMimic, parent::AbstractUIComponent) = parent!(transformof(mimic), transformof(parent))
+FlixGL.parent!(mimic::ContainerLabelMimic, parent::AbstractUIComponent) = VPECore.do_parent!(mimic, parent)
 FlixGL.deparent!(::ContainerLabelMimic) = error("Cannot deparent a ContainerLabelMimic")
 
 
@@ -308,8 +311,8 @@ end
 # Base methods
 
 Base.size(lbl::Label) = (lbl.realsize[1], lbl.realsize[2])
-function Base.resize!(lbl::Label, width::Real, height::Real)
-    lbl.wantsize = Vector2{Union{Float64, AutoSize}}(width, height)
+function Base.resize!(lbl::Label{T}, width::Real, height::Real) where T
+    lbl.wantsize = Vector2{Union{T, AutoSize}}(T(width), T(height))
     update_verts!(lbl)
     update_uvs!(lbl)
     foreach(onparentresized!, childrenof(lbl))
