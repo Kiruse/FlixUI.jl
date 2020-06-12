@@ -10,7 +10,7 @@ export PressState, Pressed, Released, Repeated
 export CursorMode, NormalCursor, HiddenCursor, CapturedCursor
 export MouseButton, LeftMouseButton, RightMouseButton, MiddleMouseButton, ForwardMouseButton, BackwardMouseButton, MouseButton6, MouseButton7, MouseButton8
 export register!, remove!, focusedelement, focuselement!, setinputmode!, getinputmode
-export cursorvisibility, showcursor, hidecursor, capturecursor
+export cursorvisibility, showcursor, hidecursor, capturecursor, getcursorcoords
 export getmousebutton
 export postvanityevent
 export keyname, getscancode
@@ -52,7 +52,7 @@ delta between current and last virtual mouse position must be calculated.
  """
 mutable struct UISystem
     window::Window
-    world::World
+    world::Optional{World}
     inputmode::InputMode
     focuselement::Optional{AbstractUIComponent}
     elements::Vector{AbstractUIComponent}
@@ -61,28 +61,54 @@ mutable struct UISystem
     ismouseover::Bool
     scroll::Vector2{Float64}
     
-    function UISystem(wnd, world, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
-        inst = new(wnd, world, inputmode, focuselement, elements, hoveredelements, listeners, ismouseover, scroll)
+    function UISystem(wnd::Window, world::Optional{World}, inputmode::InputMode)
+        inst = new(wnd, world, inputmode, nothing, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
         GLFW.SetCursorPosCallback(  wnd.handle, curry(UISystemEvents.onmousemoveinput, inst))
         GLFW.SetCursorEnterCallback(wnd.handle, curry(UISystemEvents.onmouseover,      inst))
         GLFW.SetKeyCallback(        wnd.handle, curry(UISystemEvents.onkeyinput,       inst))
         GLFW.SetCharCallback(       wnd.handle, curry(UISystemEvents.oncharinput,      inst))
         GLFW.SetMouseButtonCallback(wnd.handle, curry(UISystemEvents.onmouseinput,     inst))
         GLFW.SetScrollCallback(     wnd.handle, curry(UISystemEvents.onscrollinput,    inst))
-        hook!(curry(UISystemEvents.onwindowresize,   inst), wnd, :WindowResize)
-        hook!(curry(UISystemEvents.onelementadded,   inst), world, :AddRoot)
-        hook!(curry(UISystemEvents.onelementadded,   inst), world, :AddChild)
-        hook!(curry(UISystemEvents.onelementremoved, inst), world, :RemoveRoot)
-        hook!(curry(UISystemEvents.onelementremoved, inst), world, :RemoveChild)
-        push!(world, inst)
+        hook!(UISystemEvents.onwindowresize, wnd, :WindowResize, inst)
+        if world !== nothing
+            hook!(sys, world)
+        end
         inst
     end
 end
-UISystem(wnd::Window, world::World) = UISystem(wnd, world, GameInputMode, nothing, Vector(), Set(), ListenersType(), false, Vector2{Float64}(0, 0))
-uisystem(wnd::Window, world::World) = UISystem(wnd, world)
-uisystem(fn, wnd::Window, world::World) = (uisys = UISystem(wnd, world); fn(uisys); close(wnd))
+UISystem(wnd::Window, world::Optional{World} = nothing) = UISystem(wnd, world, GameInputMode)
+"""Wraps UISystem constructor in a try...finally callback."""
+uisystem(fn, args...) = (uisys = UISystem(args...); fn(uisys); close(wnd))
 
 VPECore.eventlisteners(sys::UISystem) = sys.listeners
+
+function VPECore.hook!(sys::UISystem, world::World)
+    unhook!(sys)
+    
+    hook!(UISystemEvents.onelementadded,   world, :AddRoot,     sys)
+    hook!(UISystemEvents.onelementadded,   world, :AddChild,    sys)
+    hook!(UISystemEvents.onelementremoved, world, :RemoveRoot,  sys)
+    hook!(UISystemEvents.onelementremoved, world, :RemoveChild, sys)
+    push!(world, sys)
+    
+    sys.world           = world
+    sys.focuselement    = nothing # No focused element by default
+    sys.elements        = collectentities(AbstractUIComponent, world, UIEntity) # Gather UI entities from the new world
+    sys.hoveredelements = Set{AbstractUIComponent}(filter(elem->ispointerover(elem, getcursorcoords()), sys.elements))
+    sys
+end
+
+function VPECore.unhook!(sys::UISystem)
+    if sys.world !== nothing
+        delete!(sys.world, sys)
+        unhook!(sys.world, :AddRoot,     UISystemEvents.onelementadded)
+        unhook!(sys.world, :AddChild,    UISystemEvents.onelementadded)
+        unhook!(sys.world, :RemoveRoot,  UISystemEvents.onelementremoved)
+        unhook!(sys.world, :RemoveChild, UISystemEvents.onelementremoved)
+        sys.world = nothing
+    end
+    sys
+end
 
 
 module UISystemEvents
@@ -123,8 +149,8 @@ function onmousemoveinput(uisys, _, xpos, ypos)
     emit(uisys, :MouseMove, pos)
     if uisys.inputmode == UIInputMode
         foreach(elem->emit(elem, :MouseMove, pos), uisys.hoveredelements)
-        foreach(elem->emit(elem, :MouseLeave), filter!(elem->wantsmouseinput(elem), setdiff(oldhovered, newhovered)))
-        foreach(elem->emit(elem, :MouseEnter), filter!(elem->wantsmouseinput(elem), setdiff(newhovered, oldhovered)))
+        foreach(elem->emit(elem, :MouseLeave), filter!(wantsmouseinput, setdiff(oldhovered, newhovered)))
+        foreach(elem->emit(elem, :MouseEnter), filter!(wantsmouseinput, setdiff(newhovered, oldhovered)))
     end
 end
 
@@ -173,16 +199,14 @@ function onscrollinput(uisys, _, xoffset, yoffset)
     end
 end
 
-function onelementadded(uisys, transform)
-    elem = getcustomdata(AbstractUIComponent, transform)
-    if elem !== nothing
+function onelementadded(uisys, elem)
+    if isa(elem, AbstractUIComponent)
         push!(uisys.elements, elem)
     end
 end
 
-function onelementremoved(uisys, transform)
-    elem = getcustomdata(AbstractUIComponent, transform)
-    if elem !== nothing
+function onelementremoved(uisys, elem)
+    if isa(elem, AbstractUIComponent)
         delete!(uisys.elements, elem)
     end
 end
@@ -213,13 +237,6 @@ function focuselement!(uisys::UISystem, elem::Optional{AbstractUIComponent})
 end
 
 
-function VPECore.hook!(uisys::UISystem, world::World)
-    uisys.world = world
-    hook!(curry(UISystemEvents.onelementadded, uisys), world, :ElementAdded)
-    hook!(curry(UISystemEvents.onelementremoved, uisys), world, :ElementRemoved)
-    uisys
-end
-
 function VPECore.tick!(uisys::UISystem, dt::AbstractFloat)
     uisys.scroll = Vector2{Float64}(0, 0)
     GLFW.PollEvents()
@@ -227,8 +244,7 @@ end
 
 function Base.close(uisys::UISystem)
     unhook!(uisys.window, :WindowResize, UISystemEvents.onwindowresize)
-    unhook!(uisys.world,  :ElementAdded, UISystemEvents.onelementadded)
-    unhook!(uisys.world,  :ElementRemoved, UISystemEvents.onelementremoved)
+    unhook!(uisys)
     uisys.listeners = ListenersType()
     uisys.focuselement = nothing
     uisys.hoveredelements = Set(AbstractUIComponent[])
@@ -244,6 +260,8 @@ setcursorvisibility(uisys::UISystem, mode::CursorMode) = GLFW.SetInputMode(uisys
 showcursor(uisys::UISystem)    = setcursorvisibility(uisys, NormalCursor)
 hidecursor(uisys::UISystem)    = setcursorvisibility(uisys, HiddenCursor)
 capturecursor(uisys::UISystem) = setcursorvisibility(uisys, CapturedCursor)
+
+getcursorcoords(uisys::UISystem) = GLFW.GetCursorPos(uisys.window.handle)
 
 """
 Waits until the input system receives an input event. If asynchronous behavior is desired, use `tick!` instead.
