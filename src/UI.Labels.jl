@@ -74,7 +74,7 @@ function Label(text::AbstractString, font::Font;
     lbl.text           = text
     lbl.realsize       = Vector2{T}(0, 0)
     lbl.imgsize        = Vector2(0, 0)
-    lbl.wantsize       = Vector2{Union{T, AutoSize}}(T(width), T(height))
+    lbl.wantsize       = Vector2{Union{T, AutoSize}}(width, height)
     lbl.lineheightmult = lineheightmult
     lbl.halign         = halign
     lbl.valign         = valign

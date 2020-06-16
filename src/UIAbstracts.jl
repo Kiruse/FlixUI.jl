@@ -11,6 +11,8 @@ const Mimicks{T<:AbstractUIElement} = Union{T, AbstractUIMimic{T}}
 
 struct AutoSize end
 const autosize = AutoSize()
+Base.convert(::Type{Union{T, AutoSize}}, ::AutoSize) where T = AutoSize
+Base.convert(::Type{Union{T, AutoSize}}, x) where T = T(x)
 
 # Additional Entity Class to filter out UI Entities separately.
 struct UIEntity <: EntityClass end
