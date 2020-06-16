@@ -273,7 +273,7 @@ postvanityevent() = GLFW.PostEmptyEvent()
 
 
 function keyname(scancode)
-    GLFW.GetKeyName(scancode)
+    GLFW.GetKeyName(GLFW.KEY_UNKNOWN, scancode)
 end
 
 function labeledkey(keyname::Symbol)
